@@ -1,0 +1,492 @@
+{% extends "main/base.html" %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row">
+    <!-- Левая колонка с инфой о пользователе -->
+    <div class="col-md-4 text-center">
+      <div class="user-profile-card">
+        <img src="{{ profile_user.profile.avatar.url|default:'/static/images/default-avatar.png' }}" alt="Avatar" class="profile-avatar">
+        
+        <h3 class="username">{{ profile_user.username }}</h3>
+        {% if profile_user.first_name or profile_user.last_name %}
+          <p class="user-fullname">{{ profile_user.first_name }} {{ profile_user.last_name }}</p>
+        {% endif %}
+        
+        <!-- Статистика пользователя -->
+        <div class="user-stats">
+          <div class="stat-item">
+            <span class="stat-number">{{ tracks_count }}</span>
+            <span class="stat-label">треков</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-number">{{ total_plays }}</span>
+            <span class="stat-label">прослушиваний</span>
+          </div>
+        </div>
+        
+        <div class="profile-actions mt-3">
+          {% if tracks_count > 0 %}
+            <button class="btn btn-success" id="playAllBtn">
+              <i class="bi bi-play-circle me-1"></i>Слушать все треки
+            </button>
+          {% endif %}
+          
+          {% if user.is_authenticated %}
+            <a href="{% url 'profile' %}" class="btn btn-outline-success mt-2">
+              <i class="bi bi-person me-1"></i>Мой профиль
+            </a>
+          {% else %}
+            <a href="{% url 'login' %}" class="btn btn-outline-success mt-2">
+              <i class="bi bi-box-arrow-in-right me-1"></i>Войти
+            </a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Правая колонка с треками -->
+    <div class="col-md-8">
+      <div class="tracks-section">
+        <div class="tracks-header">
+          <h4 class="section-title">
+            <i class="bi bi-music-note-list me-2"></i>Треки {{ profile_user.username }}
+          </h4>
+          
+          <!-- Кнопка поделиться профилем -->
+          <button class="btn btn-outline-success" id="shareProfileBtn" title="Поделиться профилем">
+            <i class="bi bi-share me-1"></i>Поделиться
+          </button>
+        </div>
+        
+        {% if tracks %}
+          <div class="tracks-grid">
+            {% for track in tracks %}
+              <div class="track-card" data-track-id="{{ track.id }}">
+                <div class="track-cover-container">
+                  {% if track.cover %}
+                    <img src="{{ track.cover.url }}" alt="{{ track.title }}" class="track-cover">
+                  {% else %}
+                    <div class="track-cover-placeholder">
+                      <i class="bi bi-music-note-beamed"></i>
+                    </div>
+                  {% endif %}
+                  
+                  <!-- Overlay с кнопкой play -->
+                  <div class="track-overlay">
+                    <button class="play-btn" onclick="playTrackFromCard({{ track.id }}, '{{ track.title|escapejs }}', '{{ track.user.username|escapejs }}', '{{ track.audio_file.url }}', {% if track.cover %}'{{ track.cover.url }}'{% else %}null{% endif %})">
+                      <i class="bi bi-play-circle-fill"></i>
+                    </button>
+                  </div>
+                  
+                  <!-- Кнопка перехода к треку -->
+                  <div class="track-actions">
+                    <a href="{% url 'track_detail' track.id %}" class="action-btn view-btn" title="Открыть трек">
+                      <i class="bi bi-eye"></i>
+                    </a>
+                  </div>
+                </div>
+                
+                <div class="track-info">
+                  <h6 class="track-title">
+                    <a href="{% url 'track_detail' track.id %}" class="track-link">{{ track.title }}</a>
+                  </h6>
+                  <p class="track-artist">{{ track.user.username }}</p>
+                  <div class="track-stats">
+                    <span class="plays-count">
+                      <i class="bi bi-play"></i> {{ track.plays_count }}
+                    </span>
+                    <span class="upload-date">{{ track.uploaded_at|date:"d.m.Y" }}</span>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+          
+          <!-- Пагинация (если треков много) -->
+          {% if tracks.count > 12 %}
+            <div class="pagination-section mt-4">
+              <nav aria-label="Навигация по трекам">
+                <ul class="pagination justify-content-center">
+                  <li class="page-item">
+                    <a class="page-link" href="#" aria-label="Предыдущая">
+                      <span aria-hidden="true">&laquo;</span>
+                    </a>
+                  </li>
+                  <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                  <li class="page-item"><a class="page-link" href="#">2</a></li>
+                  <li class="page-item"><a class="page-link" href="#">3</a></li>
+                  <li class="page-item">
+                    <a class="page-link" href="#" aria-label="Следующая">
+                      <span aria-hidden="true">&raquo;</span>
+                    </a>
+                  </li>
+                </ul>
+              </nav>
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-icon">
+              <i class="bi bi-music-note-beamed"></i>
+            </div>
+            <h5>У {{ profile_user.username }} пока нет треков</h5>
+            <p class="text-muted">Пользователь еще не загрузил ни одного трека.</p>
+            
+            {% if user.is_authenticated %}
+              <a href="{% url 'profile' %}" class="btn btn-success">
+                <i class="bi bi-plus-circle me-1"></i>Загрузить свой трек
+              </a>
+            {% else %}
+              <a href="{% url 'register' %}" class="btn btn-success">
+                <i class="bi bi-person-plus me-1"></i>Присоединиться к ZobeCloud
+              </a>
+            {% endif %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Дополнительные стили для публичного профиля */
+.user-stats {
+  display: flex;
+  justify-content: space-around;
+  margin: 1.5rem 0;
+  padding: 1rem;
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-number {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--accent-green);
+  line-height: 1;
+}
+
+.stat-label {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.track-link {
+  color: var(--text-primary);
+  text-decoration: none;
+  transition: color 0.3s ease;
+}
+
+.track-link:hover {
+  color: var(--accent-green);
+}
+
+.play-btn {
+  background: none;
+  border: none;
+  color: var(--accent-green);
+  font-size: 3rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.play-btn:hover {
+  color: var(--accent-green-light);
+  transform: scale(1.1);
+}
+
+.view-btn {
+  background: rgba(57, 255, 20, 0.9);
+  color: #000;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.view-btn:hover {
+  background: var(--accent-green);
+  color: #000;
+  transform: scale(1.1);
+}
+
+/* Пагинация */
+.pagination .page-link {
+  background: var(--bg-tertiary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
+}
+
+.pagination .page-link:hover {
+  background: var(--bg-quaternary);
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+}
+
+.pagination .page-item.active .page-link {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+  color: #000;
+}
+
+/* Анимация загрузки треков */
+.track-card {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+.track-card:nth-child(1) { animation-delay: 0.1s; }
+.track-card:nth-child(2) { animation-delay: 0.2s; }
+.track-card:nth-child(3) { animation-delay: 0.3s; }
+.track-card:nth-child(4) { animation-delay: 0.4s; }
+.track-card:nth-child(5) { animation-delay: 0.5s; }
+.track-card:nth-child(6) { animation-delay: 0.6s; }
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .user-stats {
+    margin: 1rem 0;
+  }
+  
+  .stat-number {
+    font-size: 1.25rem;
+  }
+  
+  .stat-label {
+    font-size: 0.75rem;
+  }
+  
+  .profile-actions {
+    gap: 0.5rem;
+  }
+  
+  .tracks-header {
+    flex-direction: column;
+    gap: 1rem;
+    text-align: center;
+  }
+}
+</style>
+
+<script>
+// Плейлист из всех треков на странице
+const _pubPlaylist = [{% for track in tracks %}{ id:{{ track.id }}, title:'{{ track.title|escapejs }}', artist:'{{ track.user.username|escapejs }}', audioUrl:'{{ track.audio_file.url|escapejs }}', coverUrl:{% if track.cover %}'{{ track.cover.url|escapejs }}'{% else %}null{% endif %} }{% if not forloop.last %},{% endif %}{% endfor %}];
+
+function playTrackFromCard(trackId, title, artist, audioUrl, coverUrl) {
+  if (!window.ZobePlayer) return;
+  if (_pubPlaylist.length > 1) {
+    const idx = _pubPlaylist.findIndex(t => t.id === trackId);
+    window.ZobePlayer.setPlaylist(_pubPlaylist, Math.max(0, idx));
+  } else {
+    window.ZobePlayer.playTrack({ id: trackId, title, artist, audioUrl, coverUrl });
+  }
+  if (false) { // placeholder to keep brace balance
+    showNotification('Плеер не загружен', 'error');
+  }
+}
+
+// Функция показа уведомлений
+function showNotification(message, type = 'info') {
+  const alertDiv = document.createElement('div');
+  alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+  alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; max-width: 300px;';
+  alertDiv.innerHTML = `
+    <i class="bi bi-${type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle'} me-2"></i>
+    ${message}
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  `;
+  
+  document.body.appendChild(alertDiv);
+  
+  setTimeout(() => {
+    if (alertDiv.parentNode) {
+      alertDiv.remove();
+    }
+  }, 3000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  // Функция воспроизведения всех треков
+  const playAllBtn = document.getElementById('playAllBtn');
+  if (playAllBtn) {
+    playAllBtn.addEventListener('click', function() {
+      const trackCards = document.querySelectorAll('.track-card');
+      const playlist = [];
+      
+      trackCards.forEach(card => {
+        const trackId = card.dataset.trackId;
+        const trackInfo = card.querySelector('.track-info');
+        const title = trackInfo.querySelector('.track-title a').textContent.trim();
+        const artist = trackInfo.querySelector('.track-artist').textContent.trim();
+        const playBtn = card.querySelector('.play-btn');
+        
+        // Извлекаем URL из onclick атрибута
+        const onclickAttr = playBtn.getAttribute('onclick');
+        const audioUrlMatch = onclickAttr.match(/'([^']*\.mp3[^']*)'/);
+        const audioUrl = audioUrlMatch ? audioUrlMatch[1] : null;
+        
+        const coverImg = card.querySelector('.track-cover');
+        const coverUrl = coverImg ? coverImg.src : null;
+        
+        if (audioUrl) {
+          playlist.push({
+            id: parseInt(trackId),
+            title: title,
+            artist: artist,
+            audioUrl: audioUrl,
+            coverUrl: coverUrl
+          });
+        }
+      });
+      
+      if (playlist.length > 0 && window.ZobePlayer) {
+        window.ZobePlayer.setPlaylist(playlist, 0);
+        showNotification(`Добавлено ${playlist.length} треков в плейлист`, 'success');
+      } else {
+        showNotification('Не удалось создать плейлист', 'error');
+      }
+    });
+  }
+  
+  // Кнопка поделиться профилем
+  const shareProfileBtn = document.getElementById('shareProfileBtn');
+  if (shareProfileBtn) {
+    shareProfileBtn.addEventListener('click', function() {
+      const profileUrl = window.location.href;
+      const profileTitle = `Профиль {{ profile_user.username }} на ZobeCloud`;
+      const profileText = `Послушай треки {{ profile_user.username }} на ZobeCloud! {{ tracks_count }} треков, {{ total_plays }} прослушиваний.`;
+      
+      if (navigator.share) {
+        navigator.share({
+          title: profileTitle,
+          text: profileText,
+          url: profileUrl
+        }).then(() => {
+          showNotification('Профиль успешно отправлен!', 'success');
+        }).catch((error) => {
+          console.log('Ошибка при отправке:', error);
+          copyToClipboard(profileUrl);
+        });
+      } else {
+        copyToClipboard(profileUrl);
+      }
+    });
+  }
+  
+  // Функция копирования в буфер обмена
+  function copyToClipboard(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        showNotification('Ссылка скопирована в буфер обмена!', 'success');
+      }).catch(() => {
+        fallbackCopyTextToClipboard(text);
+      });
+    } else {
+      fallbackCopyTextToClipboard(text);
+    }
+  }
+  
+  // Fallback функция копирования
+  function fallbackCopyTextToClipboard(text) {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    textArea.style.top = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    
+    try {
+      document.execCommand('copy');
+      showNotification('Ссылка скопирована в буфер обмена!', 'success');
+    } catch (err) {
+      showNotification('Не удалось скопировать ссылку', 'error');
+    }
+    
+    document.body.removeChild(textArea);
+  }
+  
+  // Анимация появления карточек
+  const trackCards = document.querySelectorAll('.track-card');
+  trackCards.forEach((card, index) => {
+    card.style.animationDelay = `${index * 0.1}s`;
+  });
+  
+  // Обработка ошибок загрузки изображений
+  const trackCovers = document.querySelectorAll('.track-cover');
+  trackCovers.forEach(cover => {
+    cover.addEventListener('error', function() {
+      this.style.display = 'none';
+      this.parentNode.querySelector('.track-cover-placeholder').style.display = 'flex';
+    });
+  });
+  
+  // Lazy loading для изображений (если много треков)
+  if ('IntersectionObserver' in window) {
+    const imageObserver = new IntersectionObserver((entries, observer) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          const img = entry.target;
+          img.src = img.dataset.src;
+          img.classList.remove('lazy');
+          imageObserver.unobserve(img);
+        }
+      });
+    });
+    
+    const lazyImages = document.querySelectorAll('img[data-src]');
+    lazyImages.forEach(img => imageObserver.observe(img));
+  }
+});
+
+// Обработка клавиш для быстрого управления
+document.addEventListener('keydown', function(e) {
+  // Только если не в поле ввода
+  if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
+    switch(e.key) {
+      case 'p':
+      case 'P':
+        // Воспроизвести все треки
+        const playAllBtn = document.getElementById('playAllBtn');
+        if (playAllBtn) {
+          e.preventDefault();
+          playAllBtn.click();
+        }
+        break;
+      case 's':
+      case 'S':
+        // Поделиться профилем
+        const shareBtn = document.getElementById('shareProfileBtn');
+        if (shareBtn) {
+          e.preventDefault();
+          shareBtn.click();
+        }
+        break;
+    }
+  }
+});
+</script>
+{% endblock %}

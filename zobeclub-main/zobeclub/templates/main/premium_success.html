@@ -1,0 +1,248 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Заявка отправлена — ZobeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.suc-wrap {
+  max-width: 580px;
+  margin: 3rem auto;
+  padding: 0 1rem 3rem;
+}
+.suc-card {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--accent-green);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+.suc-card::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(89,211,68,.07), transparent);
+  animation: shine 4s infinite;
+}
+@keyframes shine { 0%{ transform: translateX(-100%); } 100%{ transform: translateX(200%); } }
+
+.suc-icon {
+  font-size: 3.2rem;
+  margin-bottom: 1rem;
+  display: block;
+  animation: bounce 2.5s ease-in-out infinite;
+}
+@keyframes bounce {
+  0%,100%{ transform: translateY(0); }
+  40%{ transform: translateY(-14px); }
+  60%{ transform: translateY(-7px); }
+}
+.suc-title {
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--accent-green);
+  margin-bottom: .3rem;
+}
+.suc-subtitle {
+  color: var(--text-muted);
+  font-size: .88rem;
+  margin-bottom: 1.5rem;
+}
+.suc-pending {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: rgba(248,181,57,.1);
+  border: 1px solid rgba(248,181,57,.3);
+  color: #f8b539;
+  font-size: .78rem; font-weight: 700;
+  padding: 4px 12px; border-radius: 20px;
+  margin-bottom: 1.5rem;
+}
+
+/* Detail rows */
+.suc-info {
+  background: var(--bg-tertiary);
+  border-radius: 14px;
+  padding: 1rem 1.2rem;
+  text-align: left;
+  margin-bottom: 1.2rem;
+}
+.suc-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: .85rem;
+}
+.suc-row:last-child { border-bottom: none; }
+.suc-row-lbl { color: var(--text-muted); }
+.suc-row-val { color: var(--text-primary); font-weight: 600; }
+
+/* TG block */
+.suc-tg {
+  background: linear-gradient(135deg, #0a2a4a, #0d3b6e);
+  border-radius: 16px;
+  padding: 1.3rem 1.2rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.suc-tg h3 { color: #fff; font-size: 1rem; font-weight: 700; margin-bottom: .3rem; }
+.suc-tg p  { color: rgba(255,255,255,.65); font-size: .82rem; margin-bottom: .9rem; }
+.suc-tg-handle {
+  display: inline-block;
+  background: var(--accent-green);
+  color: #000; font-weight: 700;
+  padding: .35rem 1.1rem; border-radius: 20px;
+  margin-bottom: .9rem; cursor: pointer;
+}
+.suc-tg-btn {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: rgba(0,136,204,.8); color: #fff;
+  border: none; border-radius: 10px;
+  padding: .5rem 1rem; font-size: .82rem; font-weight: 600;
+  text-decoration: none; transition: background .2s; margin: .2rem;
+}
+.suc-tg-btn:hover { background: #0088cc; color: #fff; }
+
+/* Steps */
+.suc-steps {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.3rem;
+  margin-bottom: 1.5rem;
+  text-align: left;
+}
+.suc-steps h3 { font-size: .95rem; font-weight: 700; color: var(--text-primary); margin-bottom: 1rem; }
+.suc-step {
+  display: flex; align-items: flex-start; gap: .8rem;
+  padding: .5rem 0;
+  border-bottom: 1px solid var(--border-color);
+  font-size: .84rem; color: var(--text-secondary);
+}
+.suc-step:last-child { border-bottom: none; }
+.suc-step-n {
+  width: 22px; height: 22px;
+  background: var(--accent-green); color: #000;
+  border-radius: 50%; font-size: .72rem; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; margin-top: 1px;
+}
+.suc-step strong { color: var(--text-primary); }
+
+/* Actions */
+.suc-actions { display: flex; gap: .7rem; justify-content: center; flex-wrap: wrap; margin-top: 1rem; }
+.suc-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .65rem 1.3rem; border-radius: 12px;
+  font-size: .88rem; font-weight: 600;
+  text-decoration: none; border: none; cursor: pointer;
+  transition: all .2s;
+}
+.suc-btn-primary { background: var(--accent-green); color: #000; }
+.suc-btn-primary:hover { background: #6fe456; color: #000; }
+.suc-btn-outline { background: transparent; border: 1px solid var(--border-color); color: var(--text-secondary); }
+.suc-btn-outline:hover { border-color: var(--accent-green); color: var(--accent-green); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="suc-wrap">
+
+    <!-- Main card -->
+    <div class="suc-card">
+      <span class="suc-icon">✅</span>
+      <div class="suc-title">Заявка отправлена!</div>
+      <div class="suc-subtitle">Осталось только написать администратору в Telegram</div>
+      <div class="suc-pending"><i class="bi bi-hourglass-split"></i>Ожидает обработки</div>
+
+      {% if subscription %}
+      <div class="suc-info">
+        <div class="suc-row">
+          <span class="suc-row-lbl">План</span>
+          <span class="suc-row-val">{{ subscription.get_plan_type_display }}</span>
+        </div>
+        <div class="suc-row">
+          <span class="suc-row-lbl">Стоимость</span>
+          <span class="suc-row-val" style="color:var(--accent-green);">{{ subscription.price }} ₽</span>
+        </div>
+        <div class="suc-row">
+          <span class="suc-row-lbl">Дата заявки</span>
+          <span class="suc-row-val">{{ subscription.created_at|date:"d.m.Y H:i" }}</span>
+        </div>
+        <div class="suc-row">
+          <span class="suc-row-lbl">Telegram</span>
+          <span class="suc-row-val">{{ subscription.telegram_username }}</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- TG -->
+      <div class="suc-tg">
+        <h3>Напишите администратору</h3>
+        <p>Без этого шага активация невозможна</p>
+        <div class="suc-tg-handle" onclick="copyHandle()" title="Нажмите чтобы скопировать">@zobeclub_admin</div>
+        <div style="font-size:.75rem;color:rgba(255,255,255,.5);margin-bottom:.8rem;">10:00–22:00 МСК · ответ 5–15 минут</div>
+        <div>
+          <a href="https://t.me/zobeclub_admin" target="_blank" class="suc-tg-btn"><i class="bi bi-telegram"></i>Открыть Telegram</a>
+          <a href="tg://resolve?domain=zobeclub_admin" class="suc-tg-btn"><i class="bi bi-phone"></i>В приложении</a>
+        </div>
+      </div>
+
+      <!-- Steps -->
+      <div class="suc-steps">
+        <h3><i class="bi bi-list-check" style="color:var(--accent-green);margin-right:.4rem;"></i>Что делать дальше</h3>
+        <div class="suc-step"><div class="suc-step-n">1</div><div><strong>Напишите администратору</strong> в Telegram с вашим никнеймом на сайте</div></div>
+        <div class="suc-step"><div class="suc-step-n">2</div><div>Получите <strong>реквизиты</strong> для оплаты</div></div>
+        <div class="suc-step"><div class="suc-step-n">3</div><div>Оплатите и <strong>отправьте скриншот</strong> администратору</div></div>
+        <div class="suc-step"><div class="suc-step-n">4</div><div>Premium активируется <strong>в течение часа</strong> после подтверждения</div></div>
+      </div>
+
+      <div class="suc-actions">
+        <a href="{% url 'profile' %}" class="suc-btn suc-btn-primary">
+          <i class="bi bi-person"></i> В профиль
+        </a>
+        <a href="{% url 'premium_status' %}" class="suc-btn suc-btn-outline">
+          <i class="bi bi-star"></i> Статус подписки
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyHandle() {
+  navigator.clipboard.writeText('@zobeclub_admin').then(() => {
+    const el = document.createElement('div');
+    el.textContent = 'Скопировано!';
+    el.style.cssText = 'position:fixed;top:20px;right:20px;background:var(--accent-green);color:#000;padding:8px 16px;border-radius:8px;font-weight:700;z-index:9999;font-size:.85rem;';
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 2000);
+  });
+}
+
+// Poll for premium activation every 30s
+setInterval(() => {
+  fetch('/api/premium-status/')
+    .then(r => r.json())
+    .then(d => {
+      if (d.is_premium) {
+        const el = document.createElement('div');
+        el.innerHTML = `
+          <div style="position:fixed;top:20px;right:20px;background:var(--accent-green);color:#000;padding:1rem 1.2rem;border-radius:14px;font-weight:700;z-index:9999;max-width:280px;box-shadow:0 8px 24px rgba(0,0,0,.3);">
+            <div style="font-size:1.1rem;margin-bottom:.4rem;">Premium активирован!</div>
+            <div style="font-size:.82rem;font-weight:400;margin-bottom:.8rem;">Добро пожаловать в Premium!</div>
+            <button onclick="window.location.href='/premium/analytics/'" style="background:#000;color:var(--accent-green);border:none;padding:.4rem .9rem;border-radius:8px;cursor:pointer;font-weight:700;font-size:.82rem;">Аналитика</button>
+            <button onclick="this.parentElement.parentElement.remove()" style="background:transparent;border:none;float:right;font-size:1.2rem;cursor:pointer;color:#000;line-height:1;">×</button>
+          </div>`;
+        document.body.appendChild(el);
+        setTimeout(() => el.firstElementChild && el.remove(), 15000);
+      }
+    }).catch(() => {});
+}, 30000);
+</script>
+{% endblock %}

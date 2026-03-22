@@ -1,0 +1,1661 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}{{ profile_user.username }} — ZobeCloud{% endblock %}
+
+{% block content %}
+
+{# ══════════════════════ BANNER ══════════════════════ #}
+{% if profile_user.profile.is_premium %}
+  <div class="pf-banner-wrap">
+    <div class="profile-banner pf-banner-img"
+         style="background-image:url('{{ profile_user.profile.banner_url }}');">
+      <div class="pf-banner-overlay"></div>
+      {% if is_own_profile %}
+        <button class="pf-banner-edit" onclick="editBanner()" title="Изменить баннер">
+          <i class="bi bi-camera-fill"></i>
+        </button>
+      {% endif %}
+      <div class="pf-premium-tag"><i class="bi bi-star-fill"></i> PREMIUM</div>
+    </div>
+  </div>
+{% else %}
+  <div class="pf-banner-wrap">
+    <div class="pf-banner-default">
+      <div class="pf-banner-orb pf-banner-orb1"></div>
+      <div class="pf-banner-orb pf-banner-orb2"></div>
+    </div>
+  </div>
+{% endif %}
+
+{# ══════════════════════ PROFILE HEADER ══════════════════════ #}
+<div class="container" style="max-width:1100px;">
+  <div class="pf-header">
+
+    {# Avatar #}
+    <div class="pf-avatar-area">
+      <div class="avatar-wrapper {% if profile_user.profile.is_premium %}pf-avatar-premium{% endif %}">
+        <img src="{{ profile_user.profile.avatar_url }}"
+             alt="{{ profile_user.username }}"
+             class="profile-avatar pf-avatar"
+             onerror="this.src='{{ profile_user.profile.get_default_avatar }}'">
+        {% if profile_user.profile.is_verified %}
+          <div class="pf-verified" title="Верифицированный аккаунт">
+            <i class="bi bi-patch-check-fill"></i>
+          </div>
+        {% endif %}
+        {% if is_own_profile %}
+          <button class="pf-avatar-cam" onclick="editAvatar()" title="Изменить аватар">
+            <i class="bi bi-camera-fill"></i>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+
+    {# Info #}
+    <div class="pf-info">
+      <div class="pf-name-row">
+        <h1 class="pf-username">
+          {{ profile_user.username }}
+          {% if profile_user.profile.is_premium %}
+            <span class="pf-star-badge" title="Premium"><i class="bi bi-star-fill"></i></span>
+          {% endif %}
+          {% if is_own_profile %}
+            <button class="pf-edit-name-btn" onclick="editUsername()" title="Изменить никнейм">
+              <i class="bi bi-pencil"></i>
+            </button>
+          {% endif %}
+        </h1>
+        {% if profile_user.first_name or profile_user.last_name %}
+          <div class="pf-realname">{{ profile_user.first_name }} {{ profile_user.last_name }}</div>
+        {% endif %}
+      </div>
+
+      {% if profile_user.profile.bio %}
+        <p class="pf-bio">{{ profile_user.profile.bio }}</p>
+      {% endif %}
+
+      <div class="pf-meta">
+        {% if profile_user.profile.location %}
+          <span><i class="bi bi-geo-alt"></i> {{ profile_user.profile.location }}</span>
+        {% endif %}
+        {% if profile_user.profile.website %}
+          <span><i class="bi bi-link-45deg"></i>
+            <a href="{{ profile_user.profile.website }}" target="_blank" rel="noopener">
+              {{ profile_user.profile.website|slice:"8:38" }}{% if profile_user.profile.website|length > 46 %}…{% endif %}
+            </a>
+          </span>
+        {% endif %}
+        <span><i class="bi bi-calendar3"></i> с {{ profile_user.profile.created_at|date:"F Y" }}</span>
+        {% if is_own_profile %}
+          <span><i class="bi bi-envelope"></i> {{ profile_user.email }}</span>
+        {% endif %}
+      </div>
+
+      <div class="pf-stats-row">
+        <div class="pf-stat">
+          <span class="pf-stat-n">{{ tracks_count }}</span>
+          <span class="pf-stat-l">треков</span>
+        </div>
+        <div class="pf-stat-divider"></div>
+        <div class="pf-stat">
+          <span class="pf-stat-n">{{ profile_user.profile.followers_count }}</span>
+          <span class="pf-stat-l">подписчиков</span>
+        </div>
+        <div class="pf-stat-divider"></div>
+        <div class="pf-stat">
+          <span class="pf-stat-n">{{ profile_user.profile.following_count }}</span>
+          <span class="pf-stat-l">подписок</span>
+        </div>
+      </div>
+
+      <div class="pf-actions-row">
+        {% if is_own_profile %}
+          <button class="pf-btn pf-btn-outline" onclick="editProfile()">
+            <i class="bi bi-pencil-fill"></i> Редактировать
+          </button>
+          {% if profile_user.profile.is_premium %}
+            <a href="{% url 'premium_status' %}" class="pf-btn pf-btn-star">
+              <i class="bi bi-star-fill"></i> Premium
+            </a>
+            {% if user.profile.is_premium %}
+              <a href="{% url 'premium_analytics' %}" class="pf-btn pf-btn-green">
+                <i class="bi bi-bar-chart-line"></i> Аналитика
+              </a>
+            {% endif %}
+          {% else %}
+            <a href="{% url 'premium_ord' %}" class="pf-btn pf-btn-outline">
+              <i class="bi bi-star"></i> Получить Premium
+            </a>
+          {% endif %}
+          <a href="{% url 'logout' %}" class="pf-btn pf-btn-ghost">
+            <i class="bi bi-box-arrow-right"></i> Выйти
+          </a>
+        {% else %}
+          <button class="pf-btn {% if is_following %}pf-btn-outline{% else %}pf-btn-green{% endif %}" id="followBtn" onclick="toggleFollow()">
+            <i class="bi {% if is_following %}bi-person-check{% else %}bi-person-plus{% endif %}"></i>
+            {% if is_following %}Вы подписаны{% else %}Подписаться{% endif %}
+          </button>
+          <button class="pf-btn pf-btn-outline" onclick="shareProfile()">
+            <i class="bi bi-share"></i> Поделиться
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Non-premium promo (own profile) ── #}
+  {% if is_own_profile and not profile_user.profile.is_premium %}
+    <div class="pf-promo">
+      <i class="bi bi-star" style="color:var(--accent-green);font-size:1.2rem;"></i>
+      <div style="flex:1;">
+        <div style="font-weight:600;font-size:.88rem;color:var(--text-primary);">Откройте Premium</div>
+        <div style="font-size:.78rem;color:var(--text-muted);">Безлимитные загрузки, аналитика и баннер профиля</div>
+      </div>
+      <a href="{% url 'premium_ord' %}" class="pf-btn pf-btn-green" style="white-space:nowrap;font-size:.82rem;padding:.45rem .9rem;">
+        <i class="bi bi-arrow-right"></i> Подробнее
+      </a>
+    </div>
+  {% endif %}
+
+  {# ══════════════════════ TABS ══════════════════════ #}
+  <div class="pf-tabs-wrap">
+    <ul class="nav pf-nav" id="profileTabs" role="tablist">
+      <li class="nav-item">
+        <button class="pf-tab active" id="tracks-tab" data-bs-toggle="pill" data-bs-target="#tracks" type="button" role="tab">
+          <i class="bi bi-music-note"></i> Треки <span class="pf-tab-count">{{ tracks_count }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="pf-tab" id="playlists-tab" data-bs-toggle="pill" data-bs-target="#playlists" type="button" role="tab">
+          <i class="bi bi-collection-play"></i> Плейлисты <span class="pf-tab-count">{{ playlists_count }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="pf-tab" id="likes-tab" data-bs-toggle="pill" data-bs-target="#likes" type="button" role="tab">
+          <i class="bi bi-heart"></i> Лайки <span class="pf-tab-count">{{ liked_count }}</span>
+        </button>
+      </li>
+      <li class="nav-item">
+        <button class="pf-tab" id="albums-tab" data-bs-toggle="pill" data-bs-target="#albums" type="button" role="tab">
+          <i class="bi bi-collection"></i> Альбомы <span class="pf-tab-count">{{ albums|length }}</span>
+        </button>
+      </li>
+      {% if is_own_profile %}
+        <li class="nav-item">
+          <button class="pf-tab" id="scheduled-tab" data-bs-toggle="pill" data-bs-target="#scheduled" type="button" role="tab">
+            <i class="bi bi-clock"></i> Отложенные
+            {% with sc=scheduled_tracks|length|add:scheduled_albums|length %}{% if sc > 0 %}<span class="pf-tab-count">{{ sc }}</span>{% endif %}{% endwith %}
+          </button>
+        </li>
+      {% endif %}
+    </ul>
+  </div>
+
+  {# ══════════════════════ TAB CONTENT ══════════════════════ #}
+  <div class="tab-content pf-content" id="profileTabsContent">
+
+    {# ── Tracks ── #}
+    <div class="tab-pane fade show active" id="tracks" role="tabpanel">
+      <div class="pf-section-header">
+        <h4 class="pf-section-title">{% if is_own_profile %}Мои треки{% else %}Треки {{ profile_user.username }}{% endif %}</h4>
+        {% if is_own_profile %}
+          <button type="button" class="pf-btn pf-btn-green" data-bs-toggle="modal" data-bs-target="#uploadModal">
+            <i class="bi bi-plus-circle"></i> Загрузить трек
+          </button>
+          <button type="button" class="pf-btn pf-btn-outline" data-bs-toggle="modal" data-bs-target="#albumModal">
+            <i class="bi bi-collection"></i> Альбом
+          </button>
+        {% else %}
+          {% if tracks %}
+            <button class="pf-btn pf-btn-outline" onclick="playAllTracks()">
+              <i class="bi bi-play-circle"></i> Слушать все
+            </button>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      {% if tracks %}
+        <div class="pf-tracks-grid">
+          {% for track in tracks %}
+            <div class="pf-track-card" data-track-id="{{ track.id }}">
+              <div class="pf-track-cover">
+                <img src="{{ track.cover_url }}" alt="{{ track.title }}" class="track-cover"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="pf-track-ph" style="display:none;"><i class="bi bi-music-note-beamed"></i></div>
+                <div class="pf-track-overlay">
+                  <button class="play-btn pf-play" onclick="playTrackFromCard({{ track.id }}, '{{ track.title|escapejs }}', '{{ track.user.username|escapejs }}', '{{ track.audio_url|escapejs }}', '{{ track.cover_url|escapejs }}')">
+                    <i class="bi bi-play-circle-fill"></i>
+                  </button>
+                </div>
+                <div class="pf-track-btns">
+                  {% if is_own_profile %}
+                    {% if user.profile.is_premium %}
+                      <a href="{% url 'premium_analytics' %}" class="pf-tact pf-tact-green" title="Аналитика">
+                        <i class="bi bi-bar-chart-line"></i>
+                      </a>
+                    {% endif %}
+                    <button class="pf-tact" onclick="editTrack({{ track.id }}, '{{ track.title|escapejs }}', '{{ track.description|escapejs }}')" title="Редактировать">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="pf-tact pf-tact-danger" onclick="confirmDelete({{ track.id }}, '{{ track.title|escapejs }}')" title="Удалить">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  {% else %}
+                    <button class="pf-tact like-btn" onclick="toggleLike({{ track.id }})" title="Нравится">
+                      <i class="bi bi-heart"></i>
+                    </button>
+                    <button class="pf-tact" onclick="shareTrack({{ track.id }})" title="Поделиться">
+                      <i class="bi bi-share"></i>
+                    </button>
+                  {% endif %}
+                </div>
+              </div>
+              <div class="pf-track-info">
+                <a href="{% url 'track_detail' track.id %}" class="pf-track-title">{{ track.title }}</a>
+                <div class="pf-track-date">{{ track.uploaded_at|date:"d.m.Y" }}</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="pf-empty">
+          <i class="bi bi-music-note-beamed"></i>
+          {% if is_own_profile %}
+            <div>Пока нет треков</div>
+            <button type="button" class="pf-btn pf-btn-green" data-bs-toggle="modal" data-bs-target="#uploadModal">
+              <i class="bi bi-plus-circle"></i> Загрузить первый трек
+            </button>
+          {% else %}
+            <div>{{ profile_user.username }} ещё не загрузил треки</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ── Playlists ── #}
+    <div class="tab-pane fade" id="playlists" role="tabpanel">
+      <div class="pf-section-header">
+        <h4 class="pf-section-title">Плейлисты</h4>
+        {% if is_own_profile %}
+          <button class="pf-btn pf-btn-green" onclick="createPlaylist()">
+            <i class="bi bi-plus-circle"></i> Создать плейлист
+          </button>
+        {% endif %}
+      </div>
+      <div class="pf-tracks-grid" id="playlistsGridContainer"></div>
+    </div>
+
+    {# ── Likes ── #}
+    <div class="tab-pane fade" id="likes" role="tabpanel">
+      <div class="pf-section-header">
+        <h4 class="pf-section-title"><i class="bi bi-heart-fill" style="color:#e74c3c;margin-right:.4rem;"></i>Понравившиеся</h4>
+      </div>
+      {% if liked_tracks %}
+        <div class="pf-tracks-grid">
+          {% for track in liked_tracks %}
+            <div class="pf-track-card" data-track-id="{{ track.id }}">
+              <div class="pf-track-cover">
+                <img src="{{ track.cover_url }}" alt="{{ track.title }}" class="track-cover"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="pf-track-ph" style="display:none;"><i class="bi bi-music-note-beamed"></i></div>
+                <div class="pf-track-overlay">
+                  <button class="play-btn pf-play" onclick="playTrackFromCard({{ track.id }}, '{{ track.title|escapejs }}', '{{ track.user.username|escapejs }}', '{{ track.audio_url|escapejs }}', '{{ track.cover_url|escapejs }}')">
+                    <i class="bi bi-play-circle-fill"></i>
+                  </button>
+                </div>
+                <div class="pf-track-btns">
+                  <a href="{% url 'track_detail' track.id %}" class="pf-tact" title="Открыть">
+                    <i class="bi bi-eye"></i>
+                  </a>
+                </div>
+              </div>
+              <div class="pf-track-info">
+                <a href="{% url 'track_detail' track.id %}" class="pf-track-title">{{ track.title }}</a>
+                <a href="{% url 'public_profile' track.user.username %}" class="pf-track-artist">{{ track.user.username }}</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="pf-empty">
+          <i class="bi bi-heart"></i>
+          <div>Нет понравившихся треков</div>
+          <a href="{% url 'home' %}" class="pf-btn pf-btn-green"><i class="bi bi-music-note"></i> На главную</a>
+        </div>
+      {% endif %}
+    </div>
+
+    {# ── Albums ── #}
+    <div class="tab-pane fade" id="albums" role="tabpanel">
+      <div class="pf-section-header">
+        <h4 class="pf-section-title"><i class="bi bi-collection" style="color:var(--accent-green);margin-right:.4rem;"></i>{% if is_own_profile %}Мои альбомы{% else %}Альбомы {{ profile_user.username }}{% endif %}</h4>
+        {% if is_own_profile %}
+          <button type="button" class="pf-btn pf-btn-green" data-bs-toggle="modal" data-bs-target="#albumModal">
+            <i class="bi bi-plus-circle"></i> Создать альбом
+          </button>
+        {% endif %}
+      </div>
+      {% if albums %}
+        <div class="pf-tracks-grid">
+          {% for album in albums %}
+            {% if album.is_released or is_own_profile %}
+            <div class="pf-track-card">
+              <div class="pf-track-cover">
+                {% if album.cover %}
+                  <img src="{{ album.cover_url }}" alt="{{ album.title }}" class="track-cover">
+                {% else %}
+                  <div class="pf-track-ph" style="display:flex;"><i class="bi bi-collection"></i></div>
+                {% endif %}
+                <div class="pf-track-overlay">
+                  <a href="{% url 'album_detail' album.id %}" class="play-btn pf-play">
+                    <i class="bi bi-arrow-right-circle-fill"></i>
+                  </a>
+                </div>
+                {% if not album.is_released %}
+                  <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.75);border:1px solid rgba(89,211,68,.4);border-radius:8px;padding:2px 8px;font-size:.68rem;color:var(--accent-green);">
+                    <i class="bi bi-clock"></i> {{ album.release_at|date:"d.m.Y" }}
+                  </div>
+                {% endif %}
+                {% if is_own_profile %}
+                  <div class="pf-track-btns">
+                    <a href="{% url 'album_detail' album.id %}" class="pf-tact" title="Открыть"><i class="bi bi-eye"></i></a>
+                    <button class="pf-tact pf-tact-danger" onclick="confirmDeleteAlbum({{ album.id }}, '{{ album.title|escapejs }}')" title="Удалить"><i class="bi bi-trash"></i></button>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="pf-track-info">
+                <a href="{% url 'album_detail' album.id %}" class="pf-track-title">{{ album.title }}</a>
+                <div class="pf-track-artist">{{ album.tracks_count }} трек{{ album.tracks_count|pluralize:",,ов" }}</div>
+                <div class="pf-track-date">{{ album.created_at|date:"d.m.Y" }}</div>
+              </div>
+            </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="pf-empty">
+          <i class="bi bi-collection"></i>
+          {% if is_own_profile %}
+            <div>Нет альбомов</div>
+            <button type="button" class="pf-btn pf-btn-green" data-bs-toggle="modal" data-bs-target="#albumModal">
+              <i class="bi bi-plus-circle"></i> Создать первый альбом
+            </button>
+          {% else %}
+            <div>{{ profile_user.username }} ещё не создал альбомы</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ── Scheduled ── #}
+    {% if is_own_profile %}
+      <div class="tab-pane fade" id="scheduled" role="tabpanel">
+        <div class="pf-section-header">
+          <h4 class="pf-section-title"><i class="bi bi-clock" style="color:var(--accent-green);margin-right:.4rem;"></i>Отложенные релизы</h4>
+        </div>
+        {% if scheduled_tracks or scheduled_albums %}
+          {% if scheduled_tracks %}
+            <h6 class="pf-sub-section-title">Треки</h6>
+            <div class="pf-tracks-grid">
+              {% for track in scheduled_tracks %}
+                <div class="pf-track-card">
+                  <div class="pf-track-cover">
+                    <img src="{{ track.cover_url }}" alt="{{ track.title }}" class="track-cover"
+                         onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                    <div class="pf-track-ph" style="display:none;"><i class="bi bi-music-note-beamed"></i></div>
+                    <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.75);border:1px solid rgba(89,211,68,.4);border-radius:8px;padding:2px 8px;font-size:.68rem;color:var(--accent-green);">
+                      <i class="bi bi-clock"></i> {{ track.release_at|date:"d.m.Y H:i" }}
+                    </div>
+                  </div>
+                  <div class="pf-track-info">
+                    <span class="pf-track-title">{{ track.title }}</span>
+                    <div class="pf-track-date">Выйдет {{ track.release_at|date:"d.m.Y" }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if scheduled_albums %}
+            <h6 class="pf-sub-section-title" style="margin-top:1.5rem;">Альбомы</h6>
+            <div class="pf-tracks-grid">
+              {% for album in scheduled_albums %}
+                <div class="pf-track-card">
+                  <div class="pf-track-cover">
+                    {% if album.cover %}
+                      <img src="{{ album.cover_url }}" alt="{{ album.title }}" class="track-cover">
+                    {% else %}
+                      <div class="pf-track-ph" style="display:flex;"><i class="bi bi-collection"></i></div>
+                    {% endif %}
+                    <div style="position:absolute;top:6px;left:6px;background:rgba(0,0,0,.75);border:1px solid rgba(89,211,68,.4);border-radius:8px;padding:2px 8px;font-size:.68rem;color:var(--accent-green);">
+                      <i class="bi bi-clock"></i> {{ album.release_at|date:"d.m.Y H:i" }}
+                    </div>
+                  </div>
+                  <div class="pf-track-info">
+                    <a href="{% url 'album_detail' album.id %}" class="pf-track-title">{{ album.title }}</a>
+                    <div class="pf-track-date">Выйдет {{ album.release_at|date:"d.m.Y" }}</div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% else %}
+          <div class="pf-empty">
+            <i class="bi bi-clock"></i>
+            <div>Нет отложенных релизов</div>
+          </div>
+        {% endif %}
+      </div>
+    {% endif %}
+
+  </div>{# /tab-content #}
+</div>{# /container #}
+
+{# ══════════════════════ MODALS (unchanged) ══════════════════════ #}
+<div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5"><i class="bi bi-person-gear text-success"></i> Редактировать профиль</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data" action="{% url 'edit_profile' %}" class="needs-validation" novalidate>
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="editFirstName" class="form-label">Имя</label>
+              <input type="text" class="form-control" id="editFirstName" name="first_name" value="{{ profile_user.first_name }}" maxlength="30">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="editLastName" class="form-label">Фамилия</label>
+              <input type="text" class="form-control" id="editLastName" name="last_name" value="{{ profile_user.last_name }}" maxlength="30">
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="editBio" class="form-label">О себе</label>
+            <textarea class="form-control" id="editBio" name="bio" rows="3" maxlength="500">{{ profile_user.profile.bio }}</textarea>
+            <div class="form-text"><span id="bioCounter">{{ profile_user.profile.bio|length }}</span>/500</div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="editLocation" class="form-label">Местоположение</label>
+              <input type="text" class="form-control" id="editLocation" name="location" value="{{ profile_user.profile.location }}" maxlength="100">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="editWebsite" class="form-label">Веб-сайт</label>
+              <input type="url" class="form-control" id="editWebsite" name="website" value="{{ profile_user.profile.website }}">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editUsernameModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5"><i class="bi bi-at text-success"></i> Изменить никнейм</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{% url 'change_username' %}" class="needs-validation" novalidate>
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i><strong>Внимание!</strong> Изменение никнейма может повлиять на ссылки к вашему профилю.</div>
+          <div class="mb-3">
+            <label for="newUsername" class="form-label">Новый никнейм</label>
+            <div class="input-group">
+              <span class="input-group-text">@</span>
+              <input type="text" class="form-control" id="newUsername" name="username"
+                     value="{{ profile_user.username }}" required minlength="3" maxlength="150" pattern="^[a-zA-Z0-9_]+$">
+              <div class="username-check">
+                <i class="bi bi-check-circle text-success" style="display:none;"></i>
+                <i class="bi bi-x-circle text-danger" style="display:none;"></i>
+                <div class="spinner-border spinner-border-sm text-primary" style="display:none;"></div>
+              </div>
+            </div>
+            <div class="invalid-feedback"></div>
+            <div class="form-text">Только буквы, цифры и подчеркивания. Минимум 3 символа.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Изменить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="uploadModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5"><i class="bi bi-music-note-beamed text-success"></i> Загрузить трек</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data" action="{% url 'upload_track' %}" class="needs-validation" novalidate>
+        <div class="modal-body">
+          {% csrf_token %}
+          {% if not user.profile.is_premium %}
+            <div class="alert alert-info" style="background:rgba(89,211,68,.08);border-color:rgba(89,211,68,.25);color:var(--text-secondary);">
+              <i class="bi bi-info-circle me-1" style="color:var(--accent-green);"></i>
+              Бесплатный аккаунт: до 5 треков в неделю. <a href="{% url 'premium_ord' %}" style="color:var(--accent-green);">Premium</a> снимает ограничение.
+            </div>
+          {% endif %}
+          <div class="mb-3">
+            <label for="title" class="form-label">Название <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="title" name="title" required maxlength="200" placeholder="Название трека">
+            <div class="invalid-feedback">Введите название трека</div>
+          </div>
+          <div class="mb-3">
+            <label for="description" class="form-label">Описание</label>
+            <textarea class="form-control" id="description" name="description" rows="3" placeholder="О треке (необязательно)"></textarea>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="genre" class="form-label">Жанр</label>
+              <select class="form-select" id="genre" name="genre">
+                <option value="">Выберите жанр</option>
+                {% for genre in genres %}
+                  <option value="{{ genre.id }}">{{ genre.name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-6 mb-3">
+              <label for="visibility" class="form-label">Видимость</label>
+              <select class="form-select" id="visibility" name="visibility">
+                <option value="public">Публичный</option>
+                <option value="unlisted">По ссылке</option>
+                <option value="private">Приватный</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label for="cover" class="form-label">Обложка</label>
+            <input type="file" class="form-control" id="cover" name="cover" accept="image/*">
+            <div class="form-text">JPG, PNG до 5MB</div>
+          </div>
+          <div class="mb-3">
+            <label for="audio" class="form-label">MP3 файл <span class="text-danger">*</span></label>
+            <input type="file" class="form-control" id="audio" name="audio_file" accept=".mp3" required>
+            <div class="invalid-feedback">Выберите MP3 файл</div>
+            <div class="form-text">Только MP3 до 15MB</div>
+          </div>
+          {% if albums %}
+          <div class="mb-3">
+            <label for="album_id" class="form-label">Добавить в альбом</label>
+            <select class="form-select" id="album_id" name="album_id">
+              <option value="">— без альбома —</option>
+              {% for album in albums %}
+                <option value="{{ album.id }}">{{ album.title }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          {% endif %}
+          <div class="mb-3">
+            <label for="release_at" class="form-label">
+              <i class="bi bi-clock me-1" style="color:var(--accent-green);"></i>Отложенный релиз
+              <small class="text-muted ms-1">(оставьте пустым для публикации сейчас)</small>
+            </label>
+            <input type="datetime-local" class="form-control" id="release_at" name="release_at">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-upload me-1"></i>Загрузить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5"><i class="bi bi-pencil text-success"></i> Редактировать трек</h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" enctype="multipart/form-data" id="editForm" class="needs-validation" novalidate>
+        <div class="modal-body">
+          {% csrf_token %}
+          <div class="mb-3">
+            <label for="editTitle" class="form-label">Название <span class="text-danger">*</span></label>
+            <input type="text" class="form-control" id="editTitle" name="title" required maxlength="200">
+            <div class="invalid-feedback">Введите название</div>
+          </div>
+          <div class="mb-3">
+            <label for="editDescription" class="form-label">Описание</label>
+            <textarea class="form-control" id="editDescription" name="description" rows="3"></textarea>
+          </div>
+          <div class="mb-3">
+            <label for="editCover" class="form-label">Новая обложка</label>
+            <input type="file" class="form-control" id="editCover" name="cover" accept="image/*">
+            <div class="form-text">Оставьте пустым, чтобы не менять</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-danger">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Удалить трек</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Вы уверены, что хотите удалить <strong id="deleteTrackName"></strong>?</p>
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Это действие нельзя отменить.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form method="post" id="deleteForm" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Удалить навсегда</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════ ALBUM MODAL (двухшаговый) ══════════════════════ #}
+<div class="modal fade" id="albumModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <form method="post" enctype="multipart/form-data" action="{% url 'upload_album' %}" id="albumForm">
+        {% csrf_token %}
+
+        {# Индикатор шагов #}
+        <div class="album-steps-bar">
+          <div class="album-step active" id="stepDot1">
+            <div class="album-step-dot">1</div>
+            <div class="album-step-label">Информация</div>
+          </div>
+          <div class="album-step-line"></div>
+          <div class="album-step" id="stepDot2">
+            <div class="album-step-dot">2</div>
+            <div class="album-step-label">Треки</div>
+          </div>
+        </div>
+
+        {# ── Шаг 1: Информация об альбоме ── #}
+        <div id="albumStep1">
+          <div class="modal-header">
+            <h1 class="modal-title fs-5"><i class="bi bi-collection text-success"></i> Новый альбом</h1>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label for="albumTitle" class="form-label">Название <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" id="albumTitle" name="title" required maxlength="200" placeholder="Название альбома">
+            </div>
+            <div class="mb-3">
+              <label for="albumDescription" class="form-label">Описание</label>
+              <textarea class="form-control" id="albumDescription" name="description" rows="2" placeholder="О альбоме (необязательно)"></textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="albumVisibility" class="form-label">Видимость</label>
+                <select class="form-select" id="albumVisibility" name="visibility">
+                  <option value="public">Публичный</option>
+                  <option value="unlisted">По ссылке</option>
+                  <option value="private">Приватный</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Обложка альбома</label>
+                <div class="album-cover-pick" id="albumCoverPick" onclick="document.getElementById('albumCover').click()">
+                  <img id="albumCoverPreview" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:10px;">
+                  <div id="albumCoverPlaceholder">
+                    <i class="bi bi-image" style="font-size:1.8rem;color:var(--text-muted);"></i>
+                    <div style="font-size:.78rem;color:var(--text-muted);margin-top:.3rem;">Нажмите для выбора</div>
+                  </div>
+                </div>
+                <input type="file" class="d-none" id="albumCover" name="cover" accept="image/*" onchange="previewAlbumCover(this)">
+                <div class="form-text">JPG, PNG до 5MB · Станет обложкой всех треков</div>
+              </div>
+            </div>
+            <div class="mb-1">
+              <div class="form-check form-switch" style="padding-left:2.4em;">
+                <input class="form-check-input" type="checkbox" id="albumScheduleCheck" onchange="toggleAlbumSchedule(this)">
+                <label class="form-check-label" for="albumScheduleCheck" style="color:var(--text-secondary);">
+                  <i class="bi bi-clock me-1" style="color:var(--accent-green);"></i>Отложенный релиз
+                </label>
+              </div>
+              <div id="albumReleaseAtWrap" style="display:none;margin-top:.6rem;">
+                <input type="datetime-local" class="form-control" id="albumReleaseAt" name="release_at">
+                <div class="form-text">Альбом и треки станут публичными в указанное время</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="button" class="btn btn-success" onclick="albumNextStep()">
+              Далее <i class="bi bi-arrow-right ms-1"></i>
+            </button>
+          </div>
+        </div>
+
+        {# ── Шаг 2: Треки ── #}
+        <div id="albumStep2" style="display:none;">
+          <div class="modal-header">
+            <div>
+              <h1 class="modal-title fs-5"><i class="bi bi-music-note-list text-success"></i> Треки альбома</h1>
+              <div class="modal-subtitle" id="albumStepSubtitle"></div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            {# Drag & Drop зона #}
+            <div class="album-drop-zone" id="albumDropZone">
+              <i class="bi bi-cloud-upload" style="font-size:2.2rem;color:var(--accent-green);"></i>
+              <div style="font-weight:600;margin:.4rem 0 .2rem;">Перетащите MP3 файлы сюда</div>
+              <div style="font-size:.8rem;color:var(--text-muted);margin-bottom:.8rem;">или</div>
+              <button type="button" class="btn btn-outline-success btn-sm" onclick="document.getElementById('albumAudioFiles').click()">
+                <i class="bi bi-folder2-open me-1"></i>Выбрать из папки
+              </button>
+              <input type="file" class="d-none" id="albumAudioFiles" name="audio_files" accept=".mp3" multiple onchange="albumFilesAdded(this.files)">
+            </div>
+
+            {# Список добавленных файлов #}
+            <div id="albumFileList" style="display:none;margin-top:1rem;">
+              <div style="font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:.6rem;">
+                Треки <span id="albumFileCount" style="color:var(--accent-green);">0</span>
+              </div>
+              <div id="albumFileItems"></div>
+            </div>
+
+            <div class="form-text mt-2">
+              <i class="bi bi-info-circle me-1" style="color:var(--accent-green);"></i>
+              Обложка альбома будет использована для всех треков. Названия треков берутся из имён файлов.
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" onclick="albumPrevStep()">
+              <i class="bi bi-arrow-left me-1"></i>Назад
+            </button>
+            <button type="submit" class="btn btn-success" id="albumSubmitBtn">
+              <i class="bi bi-check-circle me-1"></i>Создать альбом
+            </button>
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════ DELETE ALBUM MODAL ══════════════════════ #}
+<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-danger">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Удалить альбом</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Вы уверены, что хотите удалить <strong id="deleteAlbumName"></strong>?</p>
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Треки из альбома останутся, только связь с альбомом будет удалена.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form method="post" id="deleteAlbumForm" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Удалить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ══════════════════════ CSS ══════════════════════ #}
+<style>
+/* ── Banner ── */
+.pf-banner-wrap { width:100%; overflow:hidden; }
+.pf-banner-img {
+  width:100%; height:220px;
+  background-size:cover; background-position:center;
+  background-color: var(--bg-secondary);
+  position:relative;
+}
+.pf-banner-default {
+  width:100%; height:160px;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  position:relative; overflow:hidden;
+}
+.pf-banner-overlay {
+  position:absolute; inset:0;
+  background: linear-gradient(transparent 40%, rgba(0,0,0,.55));
+}
+.pf-banner-orb {
+  position:absolute; border-radius:50%; pointer-events:none;
+}
+.pf-banner-orb1 {
+  width:300px; height:300px;
+  background: radial-gradient(circle, rgba(89,211,68,.14) 0%, transparent 70%);
+  top:-120px; left:-80px;
+}
+.pf-banner-orb2 {
+  width:220px; height:220px;
+  background: radial-gradient(circle, rgba(89,211,68,.09) 0%, transparent 70%);
+  bottom:-80px; right:-40px;
+}
+.pf-banner-edit {
+  position:absolute; top:12px; right:12px;
+  background:rgba(0,0,0,.6); border:none; border-radius:50%;
+  width:36px; height:36px; color:#fff; font-size:.9rem;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:background .2s;
+}
+.pf-banner-edit:hover { background:rgba(89,211,68,.8); color:#000; }
+.pf-premium-tag {
+  position:absolute; top:12px; right:56px;
+  background:rgba(0,0,0,.6); border:1px solid rgba(89,211,68,.4);
+  border-radius:20px; padding:3px 10px;
+  font-size:.72rem; font-weight:700; color:var(--accent-green);
+  display:flex; align-items:center; gap:.3rem;
+}
+
+/* ── Profile header ── */
+.pf-header {
+  display:flex; align-items:flex-start; gap:1.5rem;
+  margin-top:-40px; margin-bottom:1.5rem;
+  flex-wrap:wrap;
+}
+.pf-avatar-area { flex-shrink:0; }
+.avatar-wrapper {
+  width:110px; height:110px; border-radius:50%;
+  border:4px solid var(--bg-primary); position:relative;
+  background:var(--bg-secondary);
+}
+.pf-avatar {
+  width:100%; height:100%; border-radius:50%;
+  object-fit:cover; display:block;
+}
+.pf-avatar-premium {
+  border-color: var(--accent-green) !important;
+  box-shadow: 0 0 0 2px rgba(89,211,68,.3);
+}
+.pf-avatar-cam {
+  position:absolute; bottom:2px; right:2px;
+  width:28px; height:28px; border-radius:50%;
+  background:var(--bg-tertiary); border:2px solid var(--bg-primary);
+  color:var(--text-secondary); font-size:.75rem;
+  display:flex; align-items:center; justify-content:center;
+  cursor:pointer; transition:all .2s;
+}
+.pf-avatar-cam:hover { background:var(--accent-green); color:#000; }
+.pf-verified {
+  position:absolute; top:2px; right:2px;
+  color:var(--accent-green); font-size:1rem;
+  background:var(--bg-primary); border-radius:50%;
+}
+
+/* Info */
+.pf-info { flex:1; min-width:220px; padding-top:46px; }
+.pf-name-row { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; margin-bottom:.4rem; }
+.pf-username {
+  font-size:1.5rem; font-weight:800;
+  color:var(--text-primary); margin:0; line-height:1;
+}
+.pf-star-badge { color:var(--accent-green); font-size:1rem; }
+.pf-edit-name-btn {
+  background:none; border:none; color:var(--text-muted);
+  font-size:.85rem; cursor:pointer; padding:0;
+  transition:color .2s;
+}
+.pf-edit-name-btn:hover { color:var(--accent-green); }
+.pf-realname { font-size:.88rem; color:var(--text-muted); margin-bottom:.3rem; }
+
+.pf-bio {
+  color:var(--text-secondary); font-size:.9rem; line-height:1.55;
+  margin-bottom:.7rem; max-width:560px;
+}
+
+.pf-meta {
+  display:flex; flex-wrap:wrap; gap:.5rem 1.2rem;
+  font-size:.8rem; color:var(--text-muted); margin-bottom:.9rem;
+}
+.pf-meta i { color:var(--accent-green); margin-right:.2rem; }
+.pf-meta a { color:var(--text-muted); text-decoration:none; }
+.pf-meta a:hover { color:var(--accent-green); }
+
+/* Stats */
+.pf-stats-row { display:flex; align-items:center; gap:.4rem; margin-bottom:1rem; flex-wrap:wrap; }
+.pf-stat { display:flex; flex-direction:column; align-items:flex-start; }
+.pf-stat-n { font-size:1.2rem; font-weight:800; color:var(--text-primary); line-height:1; }
+.pf-stat-l { font-size:.72rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:.04em; }
+.pf-stat-divider { width:1px; height:28px; background:var(--border-color); margin:0 .7rem; }
+
+/* Actions */
+.pf-actions-row { display:flex; gap:.5rem; flex-wrap:wrap; }
+.pf-btn {
+  display:inline-flex; align-items:center; gap:.35rem;
+  padding:.5rem 1rem; border-radius:10px; font-size:.84rem;
+  font-weight:600; border:none; cursor:pointer;
+  text-decoration:none; transition:all .2s;
+}
+.pf-btn-green { background:var(--accent-green); color:#000; }
+.pf-btn-green:hover { background:#6fe456; color:#000; transform:translateY(-1px); }
+.pf-btn-outline {
+  background:transparent;
+  border:1px solid var(--border-color);
+  color:var(--text-secondary);
+}
+.pf-btn-outline:hover { border-color:var(--accent-green); color:var(--accent-green); }
+.pf-btn-star { background:rgba(89,211,68,.1); border:1px solid rgba(89,211,68,.3); color:var(--accent-green); }
+.pf-btn-star:hover { background:rgba(89,211,68,.2); color:var(--accent-green); }
+.pf-btn-ghost { color:var(--text-muted); background:transparent; }
+.pf-btn-ghost:hover { color:#e74c3c; }
+
+/* Promo */
+.pf-promo {
+  display:flex; align-items:center; gap:1rem;
+  background:rgba(89,211,68,.06);
+  border:1px solid rgba(89,211,68,.15);
+  border-radius:14px; padding:.9rem 1.2rem;
+  margin-bottom:1.5rem; flex-wrap:wrap;
+}
+
+/* Tabs */
+.pf-tabs-wrap {
+  border-bottom:1px solid var(--border-color);
+  margin-bottom:1.5rem;
+}
+.pf-nav { display:flex; gap:.2rem; flex-wrap:wrap; }
+.pf-tab {
+  background:transparent; border:none;
+  padding:.65rem 1.1rem; border-radius:10px 10px 0 0;
+  font-size:.88rem; font-weight:600; color:var(--text-muted);
+  cursor:pointer; transition:all .2s;
+  display:inline-flex; align-items:center; gap:.4rem;
+  border-bottom:2px solid transparent; margin-bottom:-1px;
+}
+.pf-tab:hover { color:var(--text-primary); background:var(--bg-secondary); }
+.pf-tab.active { color:var(--accent-green); border-bottom-color:var(--accent-green); }
+.pf-tab-count {
+  background:var(--bg-tertiary); border-radius:20px;
+  padding:1px 7px; font-size:.72rem; color:var(--text-muted);
+}
+
+/* Section header */
+.pf-content { padding-top:.5rem; }
+.pf-section-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:1.2rem; flex-wrap:wrap; gap:.5rem;
+}
+.pf-section-title {
+  font-size:1rem; font-weight:700;
+  color:var(--text-primary); margin:0;
+}
+
+/* Track grid */
+.pf-tracks-grid {
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(168px, 1fr));
+  gap:1rem;
+  margin-bottom:2rem;
+}
+.pf-track-card {
+  background:var(--bg-secondary);
+  border:1px solid var(--border-color);
+  border-radius:14px; overflow:hidden;
+  transition:border-color .2s, transform .2s;
+}
+.pf-track-card:hover { border-color:rgba(89,211,68,.4); transform:translateY(-2px); }
+
+.pf-track-cover {
+  position:relative; aspect-ratio:1;
+  background:var(--bg-tertiary); overflow:hidden;
+}
+.pf-track-cover .track-cover {
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+.pf-track-ph {
+  width:100%; height:100%; position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:2rem; color:var(--text-muted);
+}
+.pf-track-overlay {
+  position:absolute; inset:0;
+  background:rgba(0,0,0,.35);
+  display:flex; align-items:center; justify-content:center;
+  opacity:0; transition:opacity .2s;
+}
+.pf-track-card:hover .pf-track-overlay { opacity:1; }
+.pf-play {
+  background:none; border:none;
+  color:var(--accent-green); font-size:2.6rem;
+  cursor:pointer; transition:transform .15s;
+}
+.pf-play:hover { transform:scale(1.1); }
+
+.pf-track-btns {
+  position:absolute; top:6px; right:6px;
+  display:flex; flex-direction:column; gap:4px;
+  opacity:0; transition:opacity .2s;
+}
+.pf-track-card:hover .pf-track-btns { opacity:1; }
+.pf-tact {
+  width:30px; height:30px; border-radius:8px;
+  background:rgba(0,0,0,.65); border:none;
+  color:#fff; font-size:.78rem; cursor:pointer;
+  display:flex; align-items:center; justify-content:center;
+  transition:background .15s; text-decoration:none;
+}
+.pf-tact:hover { background:var(--bg-tertiary); }
+.pf-tact-green { color:var(--accent-green) !important; }
+.pf-tact-danger { color:#e74c3c !important; }
+.pf-tact-danger:hover { background:rgba(220,53,69,.2); }
+
+.pf-track-info { padding:.65rem .75rem; }
+.pf-track-title {
+  display:block; font-size:.85rem; font-weight:600;
+  color:var(--text-primary); text-decoration:none;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  margin-bottom:.15rem;
+}
+.pf-track-title:hover { color:var(--accent-green); }
+.pf-track-artist {
+  font-size:.75rem; color:var(--text-muted);
+  text-decoration:none; display:block;
+}
+.pf-track-artist:hover { color:var(--accent-green); }
+.pf-track-date { font-size:.72rem; color:var(--text-muted); }
+
+/* Empty */
+.pf-empty {
+  display:flex; flex-direction:column; align-items:center;
+  justify-content:center; gap:1rem;
+  padding:3.5rem 1rem; color:var(--text-muted); text-align:center;
+}
+.pf-empty > i { font-size:2.5rem; }
+.pf-empty > div { font-size:.95rem; }
+
+/* Activity */
+.pf-activity-feed { display:flex; flex-direction:column; gap:0; }
+.pf-act-item {
+  display:flex; align-items:flex-start; gap:.9rem;
+  padding:.8rem 0;
+  border-bottom:1px solid var(--border-color);
+}
+.pf-act-item:last-child { border-bottom:none; }
+.pf-act-icon { width:32px; height:32px; border-radius:8px;
+  background:var(--bg-tertiary);
+  display:flex; align-items:center; justify-content:center;
+  flex-shrink:0; font-size:.95rem; }
+.pf-act-content { flex:1; }
+.pf-act-text { font-size:.88rem; color:var(--text-secondary); }
+.pf-act-time { font-size:.75rem; color:var(--text-muted); margin-top:.2rem; }
+.pf-act-link { color:var(--accent-green); text-decoration:none; }
+.pf-act-link:hover { text-decoration:underline; }
+
+/* Album steps */
+.album-steps-bar {
+  display: flex; align-items: center; justify-content: center;
+  padding: 1rem 1.5rem .6rem; gap: 0;
+}
+.album-step { display: flex; flex-direction: column; align-items: center; gap: .25rem; }
+.album-step-dot {
+  width: 28px; height: 28px; border-radius: 50%;
+  border: 2px solid var(--border-color);
+  background: var(--bg-tertiary); color: var(--text-muted);
+  font-size: .8rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  transition: all .25s;
+}
+.album-step.active .album-step-dot { border-color: var(--accent-green); background: var(--accent-green); color: #000; }
+.album-step-label { font-size: .72rem; color: var(--text-muted); }
+.album-step.active .album-step-label { color: var(--accent-green); }
+.album-step-line { flex: 1; height: 2px; background: var(--border-color); margin: 0 .5rem; margin-bottom: 1.2rem; min-width: 60px; }
+.modal-subtitle { font-size: .8rem; color: var(--text-muted); margin-top: .15rem; }
+
+/* Album cover picker */
+.album-cover-pick {
+  width: 100%; height: 100px;
+  border: 2px dashed var(--border-color);
+  border-radius: 10px; cursor: pointer;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  transition: border-color .2s; overflow: hidden; position: relative;
+}
+.album-cover-pick:hover { border-color: var(--accent-green); }
+
+/* Album drop zone */
+.album-drop-zone {
+  border: 2px dashed var(--border-color);
+  border-radius: 14px; padding: 2.2rem 1rem;
+  text-align: center; transition: all .2s; cursor: pointer;
+}
+.album-drop-zone.drag-over { border-color: var(--accent-green); background: rgba(89,211,68,.06); }
+
+/* Album file list */
+.album-file-item {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .5rem .8rem; border-radius: 8px;
+  background: var(--bg-tertiary); margin-bottom: .35rem;
+}
+.album-file-item-name { flex: 1; font-size: .85rem; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.album-file-item-size { font-size: .75rem; color: var(--text-muted); flex-shrink: 0; }
+.album-file-item-remove { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px 4px; border-radius: 4px; font-size: .95rem; transition: color .15s; }
+.album-file-item-remove:hover { color: #e74c3c; }
+
+/* Sub-section */
+.pf-sub-section-title {
+  font-size:.8rem; font-weight:600; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--text-muted); margin-bottom:.8rem; padding-bottom:.4rem;
+  border-bottom:1px solid var(--border-color);
+}
+
+/* Modals */
+.modal-content {
+  background:var(--bg-secondary) !important;
+  border:1px solid var(--border-color) !important;
+  color:var(--text-primary);
+}
+.modal-header, .modal-footer { border-color:var(--border-color) !important; }
+.modal-title { color:var(--text-primary); }
+.form-control, .form-select {
+  background:var(--bg-tertiary) !important;
+  border-color:var(--border-color) !important;
+  color:var(--text-primary) !important;
+}
+.form-control::placeholder { color:var(--text-muted) !important; }
+.form-control:focus, .form-select:focus {
+  border-color:var(--accent-green) !important;
+  box-shadow:0 0 0 3px rgba(89,211,68,.1) !important;
+}
+.form-label { color:var(--text-secondary); }
+.form-text { color:var(--text-muted); }
+.input-group-text { background:var(--bg-tertiary); border-color:var(--border-color); color:var(--text-muted); }
+
+@media(max-width:600px){
+  .pf-header { margin-top:-28px; }
+  .avatar-wrapper { width:84px; height:84px; }
+  .pf-info { padding-top:30px; }
+  .pf-username { font-size:1.2rem; }
+  .pf-tracks-grid { grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); }
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ── Плейлисты ──
+function createPlaylist() {
+  const createPlaylistModal = `
+    <div class="modal fade" id="createPlaylistModal" tabindex="-1" aria-hidden="true">
+      <div class="modal-dialog"><div class="modal-content">
+        <div class="modal-header">
+          <h1 class="modal-title fs-5"><i class="bi bi-collection-play text-success"></i> Создать плейлист</h1>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <form method="post" action="{% url 'create_playlist' %}" class="needs-validation" novalidate enctype="multipart/form-data">
+          <div class="modal-body">
+            <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">
+            <div class="mb-3">
+              <label class="form-label">Название <span class="text-danger">*</span></label>
+              <input type="text" class="form-control" name="title" required maxlength="100" placeholder="Название плейлиста">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Описание</label>
+              <textarea class="form-control" name="description" rows="3" maxlength="500"></textarea>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Обложка</label>
+              <input type="file" class="form-control" name="cover" accept="image/*">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Видимость</label>
+              <select class="form-select" name="visibility">
+                <option value="public">Публичный</option>
+                <option value="unlisted">По ссылке</option>
+                <option value="private">Приватный</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+            <button type="submit" class="btn btn-success"><i class="bi bi-plus-circle me-1"></i>Создать</button>
+          </div>
+        </form>
+      </div></div>
+    </div>`;
+  document.getElementById('createPlaylistModal')?.remove();
+  document.body.insertAdjacentHTML('beforeend', createPlaylistModal);
+  new bootstrap.Modal(document.getElementById('createPlaylistModal')).show();
+  document.getElementById('createPlaylistModal').addEventListener('hidden.bs.modal', function(){ this.remove(); });
+}
+
+function loadPlaylistsContent() {
+  const container = document.getElementById('playlistsGridContainer');
+  if (!container) return;
+  const playlists = [
+    {% for playlist in playlists %}
+    { id:{{ playlist.id }}, title:"{{ playlist.title|escapejs }}", description:"{{ playlist.description|escapejs }}",
+      cover_url:"{{ playlist.cover_url }}", visibility:"{{ playlist.visibility }}",
+      tracks_count:{{ playlist.tracks_count }}, user__username:"{{ playlist.user.username|escapejs }}",
+      created_at:"{{ playlist.created_at|date:'c' }}" }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  const isOwn = {{ is_own_profile|yesno:"true,false" }};
+  if (playlists.length > 0) {
+    container.innerHTML = playlists.map(p => `
+      <div class="pf-track-card" data-playlist-id="${p.id}">
+        <div class="pf-track-cover">
+          <img src="${p.cover_url||'/static/images/default-playlist.png'}" alt="${p.title}" class="track-cover"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+          <div class="pf-track-ph" style="display:none;"><i class="bi bi-collection-play"></i></div>
+          <div class="pf-track-overlay">
+            <button class="play-btn pf-play" onclick="playPlaylist(${p.id})"><i class="bi bi-play-circle-fill"></i></button>
+          </div>
+          ${isOwn ? `<div class="pf-track-btns">
+            <button class="pf-tact" onclick="editPlaylist(${p.id},'${p.title.replace(/'/g,"\\'")}','${(p.description||'').replace(/'/g,"\\'")}','${p.visibility}')" title="Редактировать"><i class="bi bi-pencil"></i></button>
+            <button class="pf-tact pf-tact-danger" onclick="deletePlaylist(${p.id},'${p.title.replace(/'/g,"\\'")}')"><i class="bi bi-trash"></i></button>
+          </div>` : ''}
+        </div>
+        <div class="pf-track-info">
+          <a href="/playlist/${p.id}/" class="pf-track-title">${p.title}</a>
+          <div class="pf-track-date"><i class="bi bi-music-note"></i> ${p.tracks_count} треков</div>
+        </div>
+      </div>`).join('');
+  } else {
+    container.innerHTML = `<div class="pf-empty" style="grid-column:1/-1;">
+      <i class="bi bi-collection-play"></i>
+      ${isOwn ? `<div>Нет плейлистов</div><button class="pf-btn pf-btn-green" onclick="createPlaylist()"><i class="bi bi-plus-circle"></i> Создать первый</button>` : '<div>Пользователь не создал плейлисты</div>'}
+    </div>`;
+  }
+}
+
+function playPlaylist(id) {
+  fetch(`/api/playlist/${id}/tracks/`).then(r=>r.json()).then(d=>{
+    if (d.success && d.tracks.length > 0) {
+      if (window.ZobePlayer) { window.ZobePlayer.setPlaylist(d.tracks.map(t=>({id:t.id,title:t.title,artist:t.artist,audioUrl:t.audio_url,coverUrl:t.cover_url})),0); showNotification(`${d.tracks.length} треков`,'success'); }
+    } else showNotification('Плейлист пуст','warning');
+  });
+}
+
+function editPlaylist(id,title,desc,vis) {
+  const html = `<div class="modal fade" id="editPlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+      <div class="modal-header"><h1 class="modal-title fs-5"><i class="bi bi-pencil text-success"></i> Редактировать плейлист</h1><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <form method="post" action="/playlist/${id}/edit/" enctype="multipart/form-data" class="needs-validation" novalidate>
+        <div class="modal-body">
+          <input type="hidden" name="csrfmiddlewaretoken" value="${document.querySelector('[name=csrfmiddlewaretoken]').value}">
+          <div class="mb-3"><label class="form-label">Название *</label><input type="text" class="form-control" name="title" required value="${title}"></div>
+          <div class="mb-3"><label class="form-label">Описание</label><textarea class="form-control" name="description" rows="3">${desc}</textarea></div>
+          <div class="mb-3"><label class="form-label">Видимость</label><select class="form-select" name="visibility"><option value="public" ${vis==='public'?'selected':''}>Публичный</option><option value="unlisted" ${vis==='unlisted'?'selected':''}>По ссылке</option><option value="private" ${vis==='private'?'selected':''}>Приватный</option></select></div>
+        </div>
+        <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button><button type="submit" class="btn btn-success">Сохранить</button></div>
+      </form>
+    </div></div>
+  </div>`;
+  document.getElementById('editPlaylistModal')?.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
+  new bootstrap.Modal(document.getElementById('editPlaylistModal')).show();
+  document.getElementById('editPlaylistModal').addEventListener('hidden.bs.modal', function(){ this.remove(); });
+}
+
+function deletePlaylist(id,title) {
+  const html = `<div class="modal fade" id="deletePlaylistModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog"><div class="modal-content">
+      <div class="modal-header"><h1 class="modal-title fs-5 text-danger"><i class="bi bi-trash"></i> Удалить плейлист</h1><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+      <div class="modal-body"><p>Удалить <strong>"${title}"</strong>?</p><div class="alert alert-warning">Действие нельзя отменить.</div></div>
+      <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button><button class="btn btn-danger" onclick="confirmDeletePlaylist(${id})">Удалить</button></div>
+    </div></div>
+  </div>`;
+  document.getElementById('deletePlaylistModal')?.remove();
+  document.body.insertAdjacentHTML('beforeend',html);
+  new bootstrap.Modal(document.getElementById('deletePlaylistModal')).show();
+  document.getElementById('deletePlaylistModal').addEventListener('hidden.bs.modal', function(){ this.remove(); });
+}
+
+function confirmDeletePlaylist(id) {
+  const f = document.createElement('form'); f.method='POST'; f.action=`/playlist/${id}/delete/`;
+  const c = document.createElement('input'); c.type='hidden'; c.name='csrfmiddlewaretoken'; c.value=document.querySelector('[name=csrfmiddlewaretoken]').value;
+  f.appendChild(c); document.body.appendChild(f); f.submit();
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const tab = document.querySelector('button[data-bs-target="#playlists"]');
+  if (tab) { tab.addEventListener('shown.bs.tab', loadPlaylistsContent); if (tab.classList.contains('active')) loadPlaylistsContent(); }
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('tab')==='playlists' && tab) new bootstrap.Tab(tab).show();
+});
+
+// ── Треки ──
+function playTrackFromCard(id,title,artist,audioUrl,coverUrl) {
+  if (!window.ZobePlayer) return;
+  // собираем все треки со страницы для плейлиста
+  const playlist = [];
+  document.querySelectorAll('.pf-track-card').forEach(card => {
+    const btn = card.querySelector('.pf-play');
+    if (!btn) return;
+    const m = btn.getAttribute('onclick').match(/playTrackFromCard\((\d+),\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)'\)/);
+    if (m) playlist.push({id:parseInt(m[1]),title:m[2],artist:m[3],audioUrl:m[4],coverUrl:m[5]==='null'?null:m[5]});
+  });
+  if (playlist.length > 1) {
+    const idx = playlist.findIndex(t => t.id === id);
+    window.ZobePlayer.setPlaylist(playlist, Math.max(0, idx));
+  } else {
+    window.ZobePlayer.playTrack({id,title,artist,audioUrl,coverUrl});
+  }
+}
+
+function playAllTracks() {
+  const playlist = [];
+  document.querySelectorAll('.pf-track-card').forEach(card => {
+    const btn = card.querySelector('.pf-play');
+    if (!btn) return;
+    const m = btn.getAttribute('onclick').match(/playTrackFromCard\((\d+),\s*'([^']*)',\s*'([^']*)',\s*'([^']*)',\s*'([^']*)'\)/);
+    if (m) playlist.push({id:parseInt(m[1]),title:m[2],artist:m[3],audioUrl:m[4],coverUrl:m[5]==='null'?null:m[5]});
+  });
+  if (playlist.length > 0 && window.ZobePlayer) { window.ZobePlayer.setPlaylist(playlist,0); showNotification(`${playlist.length} треков`,'success'); }
+}
+
+// ── Профиль ──
+function editProfile() { new bootstrap.Modal(document.getElementById('editProfileModal')).show(); }
+function editUsername() { new bootstrap.Modal(document.getElementById('editUsernameModal')).show(); }
+function showSettings() { editProfile(); }
+
+function editAvatar() {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = e => { if (e.target.files[0]) uploadAvatar(e.target.files[0]); };
+  inp.click();
+}
+function editBanner() {
+  const inp = document.createElement('input'); inp.type='file'; inp.accept='image/*';
+  inp.onchange = e => { if (e.target.files[0]) uploadBanner(e.target.files[0]); };
+  inp.click();
+}
+
+function uploadAvatar(file) {
+  const fd = new FormData(); fd.append('avatar',file); fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]').value);
+  fetch('/api/upload-avatar/',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.success){document.querySelector('.profile-avatar').src=d.avatar_url; showNotification('Аватар обновлён','success');}
+    else showNotification(d.error||'Ошибка','error');
+  });
+}
+function uploadBanner(file) {
+  const fd = new FormData(); fd.append('banner',file); fd.append('csrfmiddlewaretoken',document.querySelector('[name=csrfmiddlewaretoken]').value);
+  fetch('/api/upload-banner/',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{
+    if(d.success){document.querySelector('.profile-banner').style.backgroundImage=`url('${d.banner_url}')`; showNotification('Баннер обновлён','success');}
+    else showNotification(d.error||'Ошибка','error');
+  });
+}
+
+function editTrack(id,title,desc) {
+  document.getElementById('editTitle').value=title;
+  document.getElementById('editDescription').value=desc;
+  document.getElementById('editForm').action=`/track/${id}/edit/`;
+  new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+function confirmDelete(id,title) {
+  document.getElementById('deleteTrackName').textContent=title;
+  document.getElementById('deleteForm').action=`/track/${id}/delete/`;
+  new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function toggleAlbumSchedule(cb) {
+  document.getElementById('albumReleaseAtWrap').style.display = cb.checked ? 'block' : 'none';
+  if (!cb.checked) document.getElementById('albumReleaseAt').value = '';
+}
+
+// ── Двухшаговый модал альбома ──
+function albumNextStep() {
+  const title = document.getElementById('albumTitle').value.trim();
+  if (!title) { document.getElementById('albumTitle').focus(); return; }
+  // обновить превью названия в step 2
+  const sub = document.getElementById('albumStepSubtitle');
+  if (sub) sub.textContent = title;
+  document.getElementById('albumStep1').style.display = 'none';
+  document.getElementById('albumStep2').style.display = '';
+  document.getElementById('stepDot1').classList.remove('active');
+  document.getElementById('stepDot2').classList.add('active');
+}
+function albumPrevStep() {
+  document.getElementById('albumStep2').style.display = 'none';
+  document.getElementById('albumStep1').style.display = '';
+  document.getElementById('stepDot2').classList.remove('active');
+  document.getElementById('stepDot1').classList.add('active');
+}
+
+// Сброс шагов при закрытии модала
+document.getElementById('albumModal').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('albumStep1').style.display = '';
+  document.getElementById('albumStep2').style.display = 'none';
+  document.getElementById('stepDot1').classList.add('active');
+  document.getElementById('stepDot2').classList.remove('active');
+  document.getElementById('albumFileItems').innerHTML = '';
+  document.getElementById('albumFileList').style.display = 'none';
+  document.getElementById('albumFileCount').textContent = '0';
+  albumSelectedFiles = [];
+  document.getElementById('albumForm').reset();
+  document.getElementById('albumCoverPreview').style.display = 'none';
+  document.getElementById('albumCoverPlaceholder').style.display = '';
+});
+
+// Превью обложки
+function previewAlbumCover(input) {
+  if (!input.files || !input.files[0]) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('albumCoverPreview').src = e.target.result;
+    document.getElementById('albumCoverPreview').style.display = 'block';
+    document.getElementById('albumCoverPlaceholder').style.display = 'none';
+  };
+  reader.readAsDataURL(input.files[0]);
+}
+
+// Drag & Drop + файлы (объекты {file, customName})
+let albumSelectedFiles = [];
+
+function albumFilesAdded(fileList) {
+  for (const f of fileList) {
+    if (f.type === 'audio/mpeg' || f.name.toLowerCase().endsWith('.mp3')) {
+      if (!albumSelectedFiles.find(x => x.file.name === f.name && x.file.size === f.size))
+        albumSelectedFiles.push({ file: f, customName: f.name.replace(/\.mp3$/i, '') });
+    }
+  }
+  renderAlbumFileList();
+}
+
+function renderAlbumFileList() {
+  const list = document.getElementById('albumFileList');
+  const items = document.getElementById('albumFileItems');
+  const count = document.getElementById('albumFileCount');
+  if (!albumSelectedFiles.length) { list.style.display = 'none'; return; }
+  list.style.display = '';
+  count.textContent = albumSelectedFiles.length;
+  items.innerHTML = albumSelectedFiles.map((item, i) => `
+    <div class="album-file-item" draggable="true" data-idx="${i}">
+      <span class="drag-handle" style="color:var(--text-muted);cursor:grab;font-size:1.1rem;flex-shrink:0;"><i class="bi bi-grip-vertical"></i></span>
+      <span class="album-file-num" style="min-width:18px;text-align:center;font-size:.78rem;color:var(--text-muted);">${i + 1}</span>
+      <i class="bi bi-music-note" style="color:var(--accent-green);flex-shrink:0;"></i>
+      <input type="text" class="album-track-name-input form-control form-control-sm"
+             value="${item.customName.replace(/"/g,'&quot;')}"
+             oninput="albumSelectedFiles[${i}].customName=this.value"
+             style="flex:1;min-width:0;background:var(--bg-tertiary);border-color:var(--border-color);color:var(--text-primary);">
+      <span style="font-size:.72rem;color:var(--text-muted);flex-shrink:0;">${(item.file.size/1024/1024).toFixed(1)} МБ</span>
+      <button type="button" class="album-file-item-remove" onclick="removeAlbumFile(${i})">
+        <i class="bi bi-x"></i>
+      </button>
+    </div>`).join('');
+  setupAlbumFileDrag();
+}
+
+function removeAlbumFile(i) {
+  albumSelectedFiles.splice(i, 1);
+  renderAlbumFileList();
+}
+
+function setupAlbumFileDrag() {
+  let dragged = null;
+  document.querySelectorAll('#albumFileItems .album-file-item').forEach(row => {
+    row.addEventListener('dragstart', e => { dragged = row; row.style.opacity = '.4'; });
+    row.addEventListener('dragend',   () => { if(dragged) dragged.style.opacity=''; dragged=null; });
+    row.addEventListener('dragover',  e => {
+      e.preventDefault();
+      if (!dragged || dragged === row) return;
+      const list = row.parentNode;
+      const rows = [...list.children];
+      const di = rows.indexOf(dragged), ri = rows.indexOf(row);
+      list.insertBefore(dragged, di < ri ? row.nextSibling : row);
+      // sync order
+      albumSelectedFiles = [...list.querySelectorAll('.album-file-item')].map(r => {
+        const idx = parseInt(r.dataset.idx);
+        return albumSelectedFiles[idx];
+      });
+      rows.forEach((r, i) => {
+        r.dataset.idx = i;
+        const n = r.querySelector('.album-file-num'); if(n) n.textContent = i+1;
+      });
+    });
+  });
+}
+
+// Drag & Drop на зону + перехват submit формы альбома
+(function() {
+  function initAlbumModal() {
+    const zone = document.getElementById('albumDropZone');
+    if (zone && !zone._init) {
+      zone._init = true;
+      zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', () => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop', e => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        albumFilesAdded(e.dataTransfer.files);
+      });
+      zone.addEventListener('click', e => {
+        if (!e.target.closest('button')) document.getElementById('albumAudioFiles').click();
+      });
+    }
+
+    const form = document.getElementById('albumForm');
+    if (form && !form._submitBound) {
+      form._submitBound = true;
+      form.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('albumSubmitBtn');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Создание...'; }
+        const fd = new FormData(this);
+        fd.delete('audio_files');
+        albumSelectedFiles.forEach(item => {
+          const renamed = new File([item.file], item.customName + '.mp3', {type: 'audio/mpeg'});
+          fd.append('audio_files', renamed);
+          fd.append('track_names', item.customName);
+        });
+        try {
+          const resp = await fetch(this.action, { method: 'POST', body: fd, credentials: 'same-origin' });
+          if (resp.redirected) { window.location.href = resp.url; return; }
+          // если нет редиректа — вытаскиваем URL из ответа
+          window.location.href = resp.url || '/profile/';
+        } catch { window.location.href = '/profile/'; }
+      });
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', initAlbumModal);
+  // переинициализация после SPA-навигации
+  document.addEventListener('spa:ready', initAlbumModal);
+})();
+
+function confirmDeleteAlbum(id, title) {
+  document.getElementById('deleteAlbumName').textContent = title;
+  document.getElementById('deleteAlbumForm').action = `/album/${id}/delete/`;
+  new bootstrap.Modal(document.getElementById('deleteAlbumModal')).show();
+}
+
+function toggleLike(id) {
+  fetch(`/api/track/${id}/like/`,{method:'POST',headers:{'X-CSRFToken':document.querySelector('[name=csrfmiddlewaretoken]').value,'Content-Type':'application/json'}})
+  .then(r=>r.json()).then(d=>{
+    if(d.success){
+      const icon=document.querySelector(`[data-track-id="${id}"] .like-btn i`);
+      if(icon) icon.className=d.liked?'bi bi-heart-fill':'bi bi-heart';
+      showNotification(d.liked?'Добавлено в лайки':'Убрано из лайков','success');
+    }
+  });
+}
+function shareTrack(id) {
+  const url=`${location.origin}/track/${id}/`;
+  navigator.share?navigator.share({url}):navigator.clipboard.writeText(url).then(()=>showNotification('Ссылка скопирована','success'));
+}
+function sendMessage() { showNotification('Раздел чатов в разработке','info'); }
+function toggleFollow() { showNotification('Подписки в разработке','info'); }
+function shareProfile() {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({ title: 'Профиль {{ profile_user.username }} — ZobeCloud', url }).catch(() => {});
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showNotification('Ссылка скопирована!', 'success'));
+  }
+}
+
+// ── Username ──
+let uTimer;
+function checkUsernameAvailability() {
+  const val=document.getElementById('newUsername').value;
+  if(val==='{{ profile_user.username }}') return;
+  const c=document.querySelector('#editUsernameModal .username-check');
+  const ok=c.querySelector('.bi-check-circle'); const err=c.querySelector('.bi-x-circle'); const sp=c.querySelector('.spinner-border');
+  ok.style.display=err.style.display=sp.style.display='none';
+  if(val.length<3) return;
+  sp.style.display='block';
+  clearTimeout(uTimer);
+  uTimer=setTimeout(()=>{
+    fetch(`/api/check-username/?username=${encodeURIComponent(val)}`).then(r=>r.json()).then(d=>{
+      sp.style.display='none';
+      if(d.available){ok.style.display='block';document.getElementById('newUsername').setCustomValidity('');}
+      else{err.style.display='block';document.getElementById('newUsername').setCustomValidity(d.message);}
+    }).catch(()=>{ sp.style.display='none'; });
+  },500);
+}
+
+function updateBioCounter() {
+  const bio=document.getElementById('editBio'); const cnt=document.getElementById('bioCounter');
+  cnt.textContent=bio.value.length; cnt.style.color=bio.value.length>450?'var(--danger-color)':'var(--text-muted)';
+}
+
+function showNotification(msg,type='info') {
+  const el=document.createElement('div');
+  el.style.cssText='position:fixed;top:20px;right:20px;z-index:9999;max-width:300px;padding:.7rem 1rem;border-radius:10px;font-size:.85rem;font-weight:600;box-shadow:0 4px 20px rgba(0,0,0,.3);';
+  const colors={success:'background:var(--accent-green);color:#000;',error:'background:#e74c3c;color:#fff;',info:'background:var(--bg-tertiary);color:var(--text-primary);border:1px solid var(--border-color);',warning:'background:#f8b539;color:#000;'};
+  el.style.cssText+=colors[type]||colors.info;
+  el.textContent=msg; document.body.appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  document.getElementById('newUsername')?.addEventListener('input', checkUsernameAvailability);
+  document.getElementById('editBio')?.addEventListener('input', updateBioCounter);
+  updateBioCounter();
+
+  const forms = document.getElementsByClassName('needs-validation');
+  Array.from(forms).forEach(form => {
+    form.addEventListener('submit', e => {
+      if (!form.checkValidity()) { e.preventDefault(); e.stopPropagation(); }
+      form.classList.add('was-validated');
+    });
+  });
+  document.querySelectorAll('.modal').forEach(m => {
+    m.addEventListener('hidden.bs.modal', function() {
+      const f=this.querySelector('form'); if(f){f.reset();f.classList.remove('was-validated');}
+    });
+  });
+});
+</script>
+{% endblock %}

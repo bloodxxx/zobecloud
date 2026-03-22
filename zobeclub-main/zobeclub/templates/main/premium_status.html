@@ -1,0 +1,469 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}Управление Premium — ZobeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.ps-wrap { max-width: 760px; margin: 0 auto; padding: 2rem 0 3rem; }
+
+/* Header */
+.ps-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+.ps-crown {
+  font-size: 2.4rem;
+  display: block;
+  margin-bottom: .5rem;
+  filter: drop-shadow(0 0 14px rgba(89,211,68,.5));
+}
+.ps-header h1 {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: .3rem;
+}
+.ps-header h1 span { color: var(--accent-green); }
+.ps-header p { color: var(--text-muted); font-size: .9rem; }
+
+/* Status card — active */
+.ps-card {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+.ps-card.active {
+  border-color: var(--accent-green);
+  background: linear-gradient(160deg, var(--bg-secondary) 0%, rgba(89,211,68,.04) 100%);
+}
+
+.ps-status-row {
+  display: flex; align-items: center; gap: 1rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+.ps-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ps-dot.on  { background: var(--accent-green); box-shadow: 0 0 8px rgba(89,211,68,.7); animation: pulse-dot 2s infinite; }
+.ps-dot.off { background: var(--text-muted); }
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 4px rgba(89,211,68,.5); }
+  50%      { box-shadow: 0 0 12px rgba(89,211,68,.9); }
+}
+.ps-status-label {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  flex: 1;
+}
+.ps-badge {
+  background: var(--accent-green);
+  color: #000;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  padding: 3px 12px;
+  border-radius: 20px;
+}
+
+/* Details grid */
+.ps-details {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .6rem;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:540px){ .ps-details { grid-template-columns: 1fr; } }
+.ps-detail {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: .9rem 1rem;
+}
+.ps-detail-lbl { font-size: .75rem; color: var(--text-muted); margin-bottom: .2rem; }
+.ps-detail-val { font-size: .95rem; font-weight: 600; color: var(--text-primary); }
+.ps-detail-val.green { color: var(--accent-green); }
+
+/* Progress */
+.ps-progress-wrap { margin-bottom: 1.5rem; }
+.ps-progress-info {
+  display: flex; justify-content: space-between;
+  font-size: .8rem; color: var(--text-muted);
+  margin-bottom: .4rem;
+}
+.ps-progress-track {
+  height: 6px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.ps-progress-fill {
+  height: 100%;
+  background: var(--accent-green);
+  border-radius: 3px;
+  transition: width .8s ease;
+  position: relative;
+  overflow: hidden;
+}
+.ps-progress-fill::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+  animation: shimmer 2s infinite;
+}
+@keyframes shimmer { 0%{ transform: translateX(-100%); } 100%{ transform: translateX(100%); } }
+
+/* Actions */
+.ps-actions { display: flex; gap: .7rem; flex-wrap: wrap; }
+.ps-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  padding: .65rem 1.2rem;
+  border-radius: 12px;
+  font-size: .88rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: none;
+  cursor: pointer;
+  transition: all .2s;
+}
+.ps-btn-primary {
+  background: var(--accent-green); color: #000;
+}
+.ps-btn-primary:hover { background: #6fe456; color: #000; }
+.ps-btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+}
+.ps-btn-outline:hover { border-color: var(--accent-green); color: var(--accent-green); }
+.ps-btn-danger {
+  background: transparent;
+  border: 1px solid rgba(220,53,69,.4);
+  color: #dc3545;
+}
+.ps-btn-danger:hover { background: rgba(220,53,69,.08); }
+
+/* Inactive */
+.ps-inactive-msg {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--text-muted);
+  font-size: .9rem;
+}
+
+/* Benefits */
+.ps-benefits {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+.ps-benefits h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.ps-benefit {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.ps-benefit:last-child { border-bottom: none; }
+.ps-benefit-icon {
+  width: 38px; height: 38px;
+  background: rgba(89,211,68,.1);
+  border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-green); font-size: 1rem;
+  flex-shrink: 0;
+}
+.ps-benefit-text { flex: 1; }
+.ps-benefit-text strong { display: block; font-size: .88rem; color: var(--text-primary); }
+.ps-benefit-text span { font-size: .78rem; color: var(--text-muted); }
+.ps-benefit-check { font-size: 1rem; }
+
+/* History */
+.ps-history {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+.ps-history h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.ps-hist-item {
+  display: flex; align-items: center; gap: 1rem;
+  padding: .8rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.ps-hist-item:last-child { border-bottom: none; }
+.ps-hist-icon { font-size: 1.1rem; flex-shrink: 0; }
+.ps-hist-main { flex: 1; }
+.ps-hist-name { font-size: .88rem; font-weight: 600; color: var(--text-primary); }
+.ps-hist-dates { font-size: .78rem; color: var(--text-muted); }
+.ps-hist-price { font-size: .88rem; font-weight: 600; color: var(--text-secondary); }
+.ps-hist-status {
+  font-size: .72rem; font-weight: 700;
+  padding: 2px 8px; border-radius: 10px;
+}
+.ps-hist-status.active   { background: rgba(89,211,68,.15); color: var(--accent-green); }
+.ps-hist-status.expired  { background: rgba(248,181,57,.15); color: #f8b539; }
+.ps-hist-status.cancelled{ background: rgba(220,53,69,.15);  color: #dc3545; }
+
+/* Modal */
+.ps-modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  display: none; align-items: center; justify-content: center;
+  z-index: 9000;
+}
+.ps-modal-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+}
+.ps-modal-icon { font-size: 2.5rem; margin-bottom: .8rem; }
+.ps-modal-box h3 { font-size: 1.1rem; font-weight: 700; color: var(--text-primary); margin-bottom: .5rem; }
+.ps-modal-box p  { font-size: .88rem; color: var(--text-secondary); margin-bottom: 1.2rem; }
+.ps-modal-actions { display: flex; gap: .7rem; justify-content: center; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="ps-wrap">
+
+    <!-- Header -->
+    <div class="ps-header">
+      <span class="ps-crown">&#11088;</span>
+      <h1>ZobeCloud <span>Premium</span></h1>
+      <p>Управление подпиской</p>
+    </div>
+
+    <!-- Status card -->
+    {% if user.profile.is_premium %}
+    <div class="ps-card active">
+      <div class="ps-status-row">
+        <div class="ps-dot on"></div>
+        <div class="ps-status-label">Подписка активна</div>
+        <div class="ps-badge">PREMIUM</div>
+      </div>
+
+      <div class="ps-details">
+        <div class="ps-detail">
+          <div class="ps-detail-lbl">Тип плана</div>
+          <div class="ps-detail-val">{{ current_subscription.get_plan_type_display }}</div>
+        </div>
+        <div class="ps-detail">
+          <div class="ps-detail-lbl">Осталось дней</div>
+          <div class="ps-detail-val green">{{ current_subscription.days_left }}</div>
+        </div>
+        <div class="ps-detail">
+          <div class="ps-detail-lbl">Активирован</div>
+          <div class="ps-detail-val">{{ current_subscription.activated_at|date:"d.m.Y" }}</div>
+        </div>
+        <div class="ps-detail">
+          <div class="ps-detail-lbl">Истекает</div>
+          <div class="ps-detail-val">{{ current_subscription.expires_at|date:"d.m.Y" }}</div>
+        </div>
+      </div>
+
+      <div class="ps-progress-wrap">
+        <div class="ps-progress-info">
+          <span>Использовано времени</span>
+          <span>{{ progress_percentage }}%</span>
+        </div>
+        <div class="ps-progress-track">
+          <div class="ps-progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div class="ps-actions">
+        <a href="{% url 'premium_analytics' %}" class="ps-btn ps-btn-primary">
+          <i class="bi bi-bar-chart-line"></i> Аналитика треков
+        </a>
+        <a href="{% url 'premium_ord' %}" class="ps-btn ps-btn-outline">
+          <i class="bi bi-arrow-repeat"></i> Продлить
+        </a>
+        <button class="ps-btn ps-btn-danger" onclick="showCancelModal()">
+          <i class="bi bi-x-circle"></i> Отменить
+        </button>
+      </div>
+    </div>
+
+    {% else %}
+    <div class="ps-card">
+      <div class="ps-status-row">
+        <div class="ps-dot off"></div>
+        <div class="ps-status-label">Подписка неактивна</div>
+      </div>
+      <div class="ps-inactive-msg">
+        <i class="bi bi-star" style="font-size:2rem;display:block;margin-bottom:.8rem;color:var(--text-muted);"></i>
+        У вас нет активной Premium подписки.<br>Оформите её, чтобы разблокировать все возможности.
+      </div>
+      <div class="ps-actions" style="justify-content:center;">
+        <a href="{% url 'premium_ord' %}" class="ps-btn ps-btn-primary">
+          <i class="bi bi-star-fill"></i> Получить Premium
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Benefits -->
+    <div class="ps-benefits">
+      <h2><i class="bi bi-gem" style="color:var(--accent-green);"></i>Возможности Premium</h2>
+      {% with is_p=user.profile.is_premium %}
+      <div class="ps-benefit">
+        <div class="ps-benefit-icon"><i class="bi bi-cloud-upload"></i></div>
+        <div class="ps-benefit-text">
+          <strong>Безлимитная загрузка треков</strong>
+          <span>Бесплатно — 5 треков в неделю</span>
+        </div>
+        <div class="ps-benefit-check">
+          {% if is_p %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% else %}<i class="bi bi-lock-fill" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+      </div>
+      <div class="ps-benefit">
+        <div class="ps-benefit-icon"><i class="bi bi-bar-chart-line"></i></div>
+        <div class="ps-benefit-text">
+          <strong>Аналитика треков</strong>
+          <span>Прослушивания, лайки, комментарии по каждому треку</span>
+        </div>
+        <div class="ps-benefit-check">
+          {% if is_p %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% else %}<i class="bi bi-lock-fill" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+      </div>
+      <div class="ps-benefit">
+        <div class="ps-benefit-icon"><i class="bi bi-star-fill"></i></div>
+        <div class="ps-benefit-text">
+          <strong>Значок Premium в профиле</strong>
+          <span>Золотая звёздочка рядом с именем</span>
+        </div>
+        <div class="ps-benefit-check">
+          {% if is_p %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% else %}<i class="bi bi-lock-fill" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+      </div>
+      <div class="ps-benefit">
+        <div class="ps-benefit-icon"><i class="bi bi-image"></i></div>
+        <div class="ps-benefit-text">
+          <strong>Персональный баннер профиля</strong>
+          <span>Загрузите уникальное фоновое изображение</span>
+        </div>
+        <div class="ps-benefit-check">
+          {% if is_p %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% else %}<i class="bi bi-lock-fill" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+      </div>
+      <div class="ps-benefit">
+        <div class="ps-benefit-icon"><i class="bi bi-headset"></i></div>
+        <div class="ps-benefit-text">
+          <strong>Приоритетная поддержка</strong>
+          <span>Ответ в течение 2 часов в рабочее время</span>
+        </div>
+        <div class="ps-benefit-check">
+          {% if is_p %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% else %}<i class="bi bi-lock-fill" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+      </div>
+      {% endwith %}
+    </div>
+
+    <!-- History -->
+    {% if subscription_history %}
+    <div class="ps-history">
+      <h2><i class="bi bi-clock-history" style="color:var(--accent-green);"></i>История подписок</h2>
+      {% for sub in subscription_history %}
+      <div class="ps-hist-item">
+        <div class="ps-hist-icon">
+          {% if sub.is_active %}<i class="bi bi-check-circle-fill" style="color:var(--accent-green);"></i>
+          {% elif sub.status == 'expired' %}<i class="bi bi-clock-fill" style="color:#f8b539;"></i>
+          {% elif sub.status == 'cancelled' %}<i class="bi bi-x-circle-fill" style="color:#dc3545;"></i>
+          {% else %}<i class="bi bi-hourglass-split" style="color:var(--text-muted);"></i>{% endif %}
+        </div>
+        <div class="ps-hist-main">
+          <div class="ps-hist-name">{{ sub.get_plan_type_display }}</div>
+          <div class="ps-hist-dates">{{ sub.created_at|date:"d.m.Y" }} — {{ sub.expires_at|date:"d.m.Y" }}</div>
+        </div>
+        <span class="ps-hist-status {{ sub.status }}">{{ sub.get_status_display }}</span>
+        <div class="ps-hist-price">{{ sub.price }} ₽</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Support -->
+    <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:16px;padding:1.2rem 1.5rem;display:flex;align-items:center;gap:1rem;flex-wrap:wrap;">
+      <i class="bi bi-question-circle-fill" style="color:var(--accent-green);font-size:1.3rem;"></i>
+      <div style="flex:1;">
+        <div style="font-size:.88rem;font-weight:600;color:var(--text-primary);">Нужна помощь?</div>
+        <div style="font-size:.8rem;color:var(--text-muted);">Свяжитесь с поддержкой по вопросам Premium подписки</div>
+      </div>
+      <a href="https://t.me/zobeclub_admin" target="_blank" class="ps-btn ps-btn-outline" style="font-size:.82rem;">
+        <i class="bi bi-telegram"></i> Telegram
+      </a>
+    </div>
+
+  </div>
+</div>
+
+<!-- Cancel modal -->
+<div class="ps-modal-overlay" id="cancelModal">
+  <div class="ps-modal-box">
+    <div class="ps-modal-icon">⚠️</div>
+    <h3>Отменить подписку?</h3>
+    <p>
+      Premium останется активным до <strong>{% if current_subscription %}{{ current_subscription.expires_at|date:"d.m.Y" }}{% endif %}</strong>, после чего доступ к Premium функциям будет закрыт.
+    </p>
+    <div class="ps-modal-actions">
+      <button class="ps-btn ps-btn-outline" onclick="closeCancelModal()">Оставить</button>
+      <form method="post" action="{% url 'cancel_premium' %}" style="display:inline;">
+        {% csrf_token %}
+        <button type="submit" class="ps-btn ps-btn-danger">Отменить подписку</button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Progress bar animation
+window.addEventListener('DOMContentLoaded', () => {
+  const fill = document.getElementById('progressFill');
+  if (fill) {
+    setTimeout(() => { fill.style.width = '{{ progress_percentage }}%'; }, 300);
+  }
+});
+
+function showCancelModal() {
+  document.getElementById('cancelModal').style.display = 'flex';
+}
+function closeCancelModal() {
+  document.getElementById('cancelModal').style.display = 'none';
+}
+document.getElementById('cancelModal').addEventListener('click', function(e) {
+  if (e.target === this) closeCancelModal();
+});
+</script>
+{% endblock %}

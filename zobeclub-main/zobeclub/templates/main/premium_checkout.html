@@ -1,0 +1,417 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Оформление Premium — ZobeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+.co-wrap {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+/* Plan summary */
+.co-plan {
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--accent-green);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+  position: relative;
+}
+.co-plan-label {
+  position: absolute;
+  top: -13px; left: 1.2rem;
+  background: var(--accent-green);
+  color: #000;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .07em;
+  padding: 3px 14px;
+  border-radius: 20px;
+}
+.co-plan-name {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: .3rem;
+}
+.co-plan-price {
+  font-size: 2.4rem;
+  font-weight: 800;
+  color: var(--accent-green);
+  line-height: 1;
+  margin-bottom: .2rem;
+}
+.co-plan-dur {
+  color: var(--text-muted);
+  font-size: .85rem;
+  margin-bottom: 1rem;
+}
+.co-plan-feats {
+  list-style: none;
+  padding: 0; margin: 0;
+  display: flex; flex-wrap: wrap; gap: .5rem;
+}
+.co-plan-feats li {
+  display: inline-flex; align-items: center; gap: .35rem;
+  background: var(--bg-tertiary);
+  border-radius: 8px;
+  padding: .3rem .7rem;
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+.co-plan-feats li i { color: var(--accent-green); }
+
+/* Steps */
+.co-steps {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+.co-steps h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.co-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: .8rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+.co-step:last-child { border-bottom: none; }
+.co-step-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--accent-green);
+  color: #000;
+  font-size: .8rem;
+  font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.co-step-text {
+  font-size: .88rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.co-step-text strong { color: var(--text-primary); }
+
+/* TG block */
+.co-tg {
+  background: linear-gradient(135deg, #0a2a4a 0%, #0d3b6e 100%);
+  border: 1px solid rgba(0,136,204,.4);
+  border-radius: 16px;
+  padding: 1.5rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+.co-tg-icon { font-size: 2.2rem; margin-bottom: .6rem; }
+.co-tg h3 { color: #fff; font-size: 1.1rem; font-weight: 700; margin-bottom: .3rem; }
+.co-tg p  { color: rgba(255,255,255,.7); font-size: .85rem; margin-bottom: 1rem; }
+.co-tg-handle {
+  display: inline-block;
+  background: var(--accent-green);
+  color: #000;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: .45rem 1.2rem;
+  border-radius: 20px;
+  margin-bottom: 1rem;
+}
+.co-tg-btns { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+.co-tg-btn {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: rgba(0,136,204,.8);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: .6rem 1.2rem;
+  font-size: .88rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background .2s;
+}
+.co-tg-btn:hover { background: #0088cc; color: #fff; }
+
+/* Form */
+.co-form {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.8rem;
+  margin-bottom: 1.5rem;
+}
+.co-form h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.co-field { margin-bottom: 1.2rem; }
+.co-label {
+  display: block;
+  font-size: .82rem;
+  font-weight: 600;
+  color: var(--accent-green);
+  margin-bottom: .4rem;
+}
+.co-input {
+  width: 100%;
+  padding: .7rem 1rem;
+  background: var(--bg-tertiary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: .9rem;
+  transition: border-color .2s;
+}
+.co-input:focus {
+  outline: none;
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 3px rgba(89,211,68,.1);
+}
+.co-input::placeholder { color: var(--text-muted); }
+.co-textarea { min-height: 90px; resize: vertical; }
+
+.co-note {
+  background: rgba(89,211,68,.06);
+  border: 1px solid rgba(89,211,68,.2);
+  border-radius: 10px;
+  padding: .7rem 1rem;
+  font-size: .82rem;
+  color: var(--text-secondary);
+  margin-bottom: 1.2rem;
+}
+.co-note i { color: var(--accent-green); margin-right: .3rem; }
+
+.co-submit {
+  width: 100%;
+  padding: .85rem;
+  background: var(--accent-green);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+}
+.co-submit:hover {
+  background: #6fe456;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(89,211,68,.35);
+}
+
+/* Security */
+.co-security {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.2rem 1.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .8rem 2rem;
+  margin-bottom: 1.5rem;
+}
+.co-sec-item {
+  display: flex; align-items: center; gap: .4rem;
+  font-size: .82rem;
+  color: var(--text-secondary);
+}
+.co-sec-item i { color: var(--accent-green); }
+
+/* Loading */
+.co-loading {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.7);
+  display: none;
+  align-items: center; justify-content: center;
+  z-index: 9999;
+}
+.co-loading-box {
+  background: var(--bg-secondary);
+  border: 1px solid var(--accent-green);
+  border-radius: 16px;
+  padding: 2rem 3rem;
+  text-align: center;
+}
+.co-spinner {
+  width: 44px; height: 44px;
+  border: 3px solid var(--border-color);
+  border-top-color: var(--accent-green);
+  border-radius: 50%;
+  animation: spin .9s linear infinite;
+  margin: 0 auto 1rem;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+  <div class="co-wrap">
+
+    <!-- Back -->
+    <a href="{% url 'premium_ord' %}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:.4rem;margin-bottom:1.5rem;">
+      <i class="bi bi-arrow-left"></i> К выбору плана
+    </a>
+
+    <!-- Plan summary -->
+    <div class="co-plan">
+      <div class="co-plan-label">ВЫБРАННЫЙ ПЛАН</div>
+      <div class="co-plan-name">{{ plan.name }}</div>
+      <div class="co-plan-price"><sup style="font-size:1.1rem;vertical-align:top;margin-top:.5rem;">₽</sup>{{ plan.price }}</div>
+      <div class="co-plan-dur">{{ plan.duration_text }}</div>
+      <ul class="co-plan-feats">
+        <li><i class="bi bi-check-circle-fill"></i>Безлимитная загрузка треков</li>
+        <li><i class="bi bi-check-circle-fill"></i>Аналитика треков</li>
+        <li><i class="bi bi-check-circle-fill"></i>Значок Premium</li>
+        <li><i class="bi bi-check-circle-fill"></i>Баннер профиля</li>
+        <li><i class="bi bi-check-circle-fill"></i>Приоритетная поддержка</li>
+      </ul>
+    </div>
+
+    <!-- Steps -->
+    <div class="co-steps">
+      <h2><i class="bi bi-list-ol" style="color:var(--accent-green);"></i>Как оплатить</h2>
+      <div class="co-step">
+        <div class="co-step-num">1</div>
+        <div class="co-step-text"><strong>Напишите в Telegram</strong> администратору по кнопке ниже</div>
+      </div>
+      <div class="co-step">
+        <div class="co-step-num">2</div>
+        <div class="co-step-text"><strong>Укажите никнейм</strong> на сайте и выбранный план</div>
+      </div>
+      <div class="co-step">
+        <div class="co-step-num">3</div>
+        <div class="co-step-text">Получите <strong>реквизиты</strong> для оплаты</div>
+      </div>
+      <div class="co-step">
+        <div class="co-step-num">4</div>
+        <div class="co-step-text">Оплатите и <strong>пришлите скриншот</strong> — Premium активируется в течение часа</div>
+      </div>
+    </div>
+
+    <!-- Telegram -->
+    <div class="co-tg">
+      <div class="co-tg-icon">✈️</div>
+      <h3>Оплата через Telegram</h3>
+      <p>Свяжитесь с администратором для получения реквизитов</p>
+      <div class="co-tg-handle">@zobeclub_admin</div>
+      <div style="font-size:.8rem;color:rgba(255,255,255,.6);margin-bottom:1rem;">Ежедневно 10:00–22:00 МСК · ответ 5–15 минут</div>
+      <div class="co-tg-btns">
+        <a href="https://t.me/zobeclub_admin" target="_blank" class="co-tg-btn">
+          <i class="bi bi-telegram"></i> Открыть Telegram
+        </a>
+        <a href="tg://resolve?domain=zobeclub_admin" class="co-tg-btn">
+          <i class="bi bi-phone"></i> В приложении
+        </a>
+      </div>
+    </div>
+
+    <!-- Form -->
+    <form method="post" action="{% url 'process_premium_payment' %}" class="co-form" id="paymentForm">
+      {% csrf_token %}
+      <input type="hidden" name="plan_id" value="{{ plan.id }}">
+      <input type="hidden" name="payment_method" value="telegram">
+
+      <h2><i class="bi bi-pencil-square" style="color:var(--accent-green);"></i>Заявка на оплату</h2>
+
+      <div class="co-field">
+        <label class="co-label" for="telegram_username">Ваш Telegram username *</label>
+        <input type="text" id="telegram_username" name="telegram_username"
+               class="co-input" placeholder="@username" required>
+      </div>
+
+      <div class="co-field">
+        <label class="co-label" for="user_message">Сообщение (необязательно)</label>
+        <textarea id="user_message" name="user_message" class="co-input co-textarea"
+          placeholder="Дополнительные вопросы...">Здравствуйте! Хочу оформить {{ plan.name }} за {{ plan.price }}₽. Никнейм на сайте: {{ user.username }}.</textarea>
+      </div>
+
+      <div class="co-note">
+        <i class="bi bi-info-circle"></i>
+        После отправки заявки обязательно напишите в Telegram администратору — без этого активация невозможна.
+      </div>
+
+      <button type="submit" class="co-submit" id="submitBtn">
+        <i class="bi bi-check-lg me-2"></i>Отправить заявку
+      </button>
+    </form>
+
+    <!-- Security -->
+    <div class="co-security">
+      <div class="co-sec-item"><i class="bi bi-shield-check"></i>Безопасная оплата</div>
+      <div class="co-sec-item"><i class="bi bi-arrow-counterclockwise"></i>Возврат 14 дней</div>
+      <div class="co-sec-item"><i class="bi bi-lock"></i>Данные защищены</div>
+      <div class="co-sec-item"><i class="bi bi-headset"></i>Поддержка ежедневно</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Loading -->
+<div class="co-loading" id="loadingOverlay">
+  <div class="co-loading-box">
+    <div class="co-spinner"></div>
+    <div style="color:var(--accent-green);font-weight:700;">Отправляем заявку...</div>
+    <div style="color:var(--text-muted);font-size:.85rem;margin-top:.3rem;">Пожалуйста, подождите</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const form = document.getElementById('paymentForm');
+const submitBtn = document.getElementById('submitBtn');
+const overlay = document.getElementById('loadingOverlay');
+const tgInput = document.getElementById('telegram_username');
+
+tgInput.addEventListener('input', function() {
+  if (this.value && !this.value.startsWith('@')) this.value = '@' + this.value;
+});
+
+form.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const tg = tgInput.value.trim();
+  if (!tg || tg === '@') { tgInput.focus(); return; }
+  if (!/^@[a-zA-Z0-9_]{5,32}$/.test(tg)) {
+    alert('Неверный формат. Используйте: @username (5-32 символа)');
+    tgInput.focus(); return;
+  }
+  overlay.style.display = 'flex';
+  submitBtn.disabled = true;
+
+  fetch(form.action, {
+    method: 'POST',
+    body: new FormData(form),
+    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+  })
+  .then(r => r.json())
+  .then(d => {
+    overlay.style.display = 'none';
+    if (d.success) {
+      window.location.href = d.redirect_url || '{% url "premium_success" %}';
+    } else {
+      submitBtn.disabled = false;
+      alert('Ошибка: ' + (d.error || 'Неизвестная ошибка'));
+    }
+  })
+  .catch(() => {
+    overlay.style.display = 'none';
+    submitBtn.disabled = false;
+    alert('Ошибка соединения. Попробуйте ещё раз.');
+  });
+});
+</script>
+{% endblock %}

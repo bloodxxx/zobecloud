@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}ZobeCloud{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-dark text-light">
+
+  <!-- полоска SPA-загрузки -->
+  <div id="spa-loader"></div>
+
+  <!-- навигация -->
+  <header class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
+    <div class="container">
+      <a class="navbar-brand fw-bold fs-3" href="{% url 'home' %}">ZobeCloud</a>
+
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'home' %}"><i class="bi bi-house me-1"></i>Главная</a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'search' %}"><i class="bi bi-search me-1"></i>Поиск</a>
+          </li>
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link position-relative" href="{% url 'chat_list' %}" id="chatNavLink">
+                <i class="bi bi-chat-dots me-1"></i>Чаты
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger"
+                      id="unreadChatBadge" style="display:none;">
+                  <span id="unreadChatCount">0</span>
+                </span>
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+
+        <ul class="navbar-nav">
+          {% if user.is_authenticated %}
+            {% if user.is_staff or user.is_superuser %}
+              <li class="nav-item">
+                <a class="nav-link text-warning" href="/admin/" target="_blank" title="Панель администратора">
+                  <i class="bi bi-gear-fill me-1"></i>Админка
+                </a>
+              </li>
+            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'profile' %}">
+                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                {% if user.profile.is_premium %}
+                  <i class="bi bi-star-fill text-warning ms-1" title="Премиум"></i>
+                {% endif %}
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-danger" href="{% url 'logout' %}">
+                <i class="bi bi-box-arrow-right me-1"></i>Выйти
+              </a>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'login' %}"><i class="bi bi-box-arrow-in-right me-1"></i>Войти</a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-success" href="{% url 'register' %}"><i class="bi bi-person-plus me-1"></i>Регистрация</a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- flash-сообщения Django — скрытые data-элементы, JS конвертирует в тосты -->
+  <div id="page-messages" style="display:none;">
+    {% for message in messages %}
+      <span data-msg="{{ message }}" data-type="{% if message.tags == 'error' %}error{% elif message.tags == 'warning' %}warning{% else %}success{% endif %}"></span>
+    {% endfor %}
+  </div>
+
+  <!-- обёртка страницы: контент + футер получают отступ при активном плеере -->
+  <div id="page-wrap">
+    <!-- основной контент (SPA меняет только это) -->
+    <main id="page-main">
+      {% block content %}{% endblock %}
+    </main>
+
+    <!-- футер -->
+    <footer class="bg-secondary text-center py-4 mt-5">
+      <div class="container">
+        <div class="row">
+          <div class="col-md-6 text-md-start">
+            <h5 class="text-success">ZobeCloud</h5>
+            <p class="text-muted mb-0">Твоя музыкальная платформа</p>
+          </div>
+          <div class="col-md-6 text-md-end">
+            <p class="text-muted mb-0">© 2025 ZobeCloud</p>
+            <div class="mt-2"><a href="#" class="text-muted"><i class="bi bi-telegram"></i></a></div>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </div><!-- /page-wrap -->
+
+  <!-- ══════════════ ПЛЕЕР (вне page-wrap — независимый от страницы) ══════════════ -->
+  <div id="miniPlayer" class="zp-bar" style="display:none">
+
+    <!-- обложка + инфо -->
+    <div class="zp-info">
+      <div class="zp-cover" id="zpCover">
+        <img id="zpCoverImg" src="" alt="">
+        <div class="zp-cover-fb" id="zpCoverFb"><i class="bi bi-music-note-beamed"></i></div>
+      </div>
+      <div class="zp-meta">
+        <div class="zp-title" id="zpTitle">—</div>
+        <div class="zp-artist" id="zpArtist">—</div>
+      </div>
+    </div>
+
+    <!-- управление + прогресс -->
+    <div class="zp-center">
+      <div class="zp-controls">
+        <button class="zp-btn" id="zpPrev" title="Предыдущий"><i class="bi bi-skip-backward-fill"></i></button>
+        <button class="zp-btn zp-play" id="zpPlay" title="Play / Pause">
+          <i class="bi bi-play-fill" id="zpPlayIcon"></i>
+        </button>
+        <button class="zp-btn" id="zpNext" title="Следующий"><i class="bi bi-skip-forward-fill"></i></button>
+      </div>
+      <div class="zp-progress-row">
+        <span class="zp-time" id="zpCur">0:00</span>
+        <div class="zp-progress" id="zpProgress">
+          <div class="zp-prog-fill" id="zpFill"></div>
+          <div class="zp-prog-thumb" id="zpThumb"></div>
+        </div>
+        <span class="zp-time" id="zpDur">0:00</span>
+      </div>
+    </div>
+
+    <!-- громкость + закрыть -->
+    <div class="zp-right">
+      <i class="bi bi-volume-up zp-vol-icon" id="zpVolIcon"></i>
+      <input type="range" class="zp-vol" id="zpVol" min="0" max="100" value="40">
+      <button class="zp-btn zp-close" id="zpClose" title="Закрыть плеер"><i class="bi bi-x-lg"></i></button>
+    </div>
+
+    <audio id="zpAudio" preload="metadata"></audio>
+  </div>
+
+  <!-- Toast-контейнер (фиксированный, не влияет на layout) -->
+  <div id="toast-container"></div>
+
+  <!-- Bootstrap + плеер (вне SPA контейнера — не перезапускаются при навигации) -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="{% static 'js/track_player.js' %}?v=5"></script>
+
+  {% if user.is_authenticated %}
+  <script>
+    // счётчик непрочитанных сообщений в чате
+    function checkUnread() {
+      fetch('/api/chat/unread-count/')
+        .then(r => r.json())
+        .then(d => {
+          const badge = document.getElementById('unreadChatBadge');
+          const count = document.getElementById('unreadChatCount');
+          if (!badge) return;
+          if (d.success && d.unread_count > 0) {
+            count.textContent = d.unread_count > 99 ? '99+' : d.unread_count;
+            badge.style.display = 'inline-block';
+          } else {
+            badge.style.display = 'none';
+          }
+        }).catch(() => {});
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+      checkUnread();
+      setInterval(checkUnread, 30000);
+    });
+    document.getElementById('chatNavLink')?.addEventListener('click', () => {
+      setTimeout(() => {
+        const b = document.getElementById('unreadChatBadge');
+        if (b) b.style.display = 'none';
+      }, 1000);
+    });
+  </script>
+  {% endif %}
+
+  <!-- скрипты страницы (extra_js блок) — SPA заменяет этот контейнер при навигации -->
+  <div id="__page_scripts" hidden>{% block extra_js %}{% endblock %}</div>
+
+</body>
+</html>

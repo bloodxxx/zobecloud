@@ -1,0 +1,119 @@
+/* ZobeClub Admin — дополнительные исправления поверх Unfold */
+
+/* ===== Кнопка "Вперёд" / Go (выполнить действие) ===== */
+.actions input[type="submit"],
+.actions button[type="submit"],
+.actions button,
+input[name="index"],
+button[name="index"] {
+    background-color: #59d344 !important;
+    color: #000 !important;
+    border: none !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    padding: 6px 18px !important;
+    cursor: pointer !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    display: inline-flex !important;
+}
+
+/* ===== Кнопка "Добавить" (+ на главной и object-tools) ===== */
+.addlink,
+a.addlink,
+.object-tools a,
+.object-tools li a {
+    background-color: #59d344 !important;
+    color: #000 !important;
+    border: none !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    text-decoration: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+.addlink:hover, a.addlink:hover, .object-tools a:hover {
+    background-color: #4cd131 !important;
+    color: #000 !important;
+}
+
+/* ===== Кнопка "Удалить" ===== */
+.deletelink, a.deletelink, .submit-row a.deletelink {
+    color: #f35f6b !important;
+    border: 1px solid #f35f6b !important;
+    border-radius: 8px !important;
+    text-decoration: none !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+.deletelink:hover { background-color: rgba(243,95,107,0.15) !important; }
+
+/* ===== Кнопки "Сохранить" ===== */
+.submit-row input[name="_save"],
+input[type="submit"][value="Save"],
+input[type="submit"][value="Сохранить"] {
+    background-color: #59d344 !important;
+    color: #000 !important;
+    font-weight: 700 !important;
+}
+
+/* ===== Выпадающие списки ===== */
+select, select[name="action"] {
+    background-color: #272727 !important;
+    color: #e3e8ee !important;
+    border: 1px solid #3a3a3a !important;
+}
+select option {
+    background-color: #1e1e1e !important;
+    color: #e3e8ee !important;
+}
+
+/* ===== Чекбоксы ===== */
+input[type="checkbox"] {
+    accent-color: #59d344;
+}
+
+/* ===== "Последние действия" — текст на цветном фоне ===== */
+.dashboard .module.recent-actions-module,
+#recent-actions-module,
+.module.recent-actions-module {
+    background-color: #1e1e1e !important;
+}
+.addlink-block, .changelink-block,
+.recent-actions-module .addlink,
+.recent-actions-module li a,
+.recent-actions-module p {
+    color: #e3e8ee !important;
+}
+
+/* ===== Поля ввода ===== */
+input[type="text"], input[type="email"], input[type="password"],
+input[type="number"], input[type="url"], textarea {
+    background-color: #272727 !important;
+    color: #e3e8ee !important;
+    border: 1px solid #3a3a3a !important;
+}
+input:focus, textarea:focus, select:focus {
+    border-color: #59d344 !important;
+    outline: none !important;
+}
+
+/* ===== Sidebar hover ===== */
+nav a:hover, .sidebar a:hover { color: #59d344 !important; }
+
+/* ===== Messages ===== */
+.messagelist .success {
+    background-color: rgba(89,211,68,0.12) !important;
+    border-left: 4px solid #59d344 !important;
+    color: #e3e8ee !important;
+}
+.messagelist .error {
+    background-color: rgba(243,95,107,0.12) !important;
+    border-left: 4px solid #f35f6b !important;
+    color: #e3e8ee !important;
+}
+.messagelist .warning {
+    background-color: rgba(248,181,57,0.12) !important;
+    border-left: 4px solid #f8b539 !important;
+    color: #e3e8ee !important;
+}

@@ -1,0 +1,940 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Присоединиться к ZobeCloud{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+  <div class="row justify-content-center">
+    <div class="col-lg-8 col-xl-6">
+      <!-- Заголовок -->
+      <div class="register-header text-center mb-4">
+        <h1 class="register-title">
+          <i class="bi bi-music-note-beamed me-2"></i>
+          Присоединиться к ZobeCloud
+        </h1>
+        <p class="register-subtitle">Создайте аккаунт и начните делиться своей музыкой</p>
+      </div>
+
+      <!-- Форма регистрации -->
+      <div class="register-card">
+        <form method="POST" enctype="multipart/form-data" id="registerForm" class="needs-validation" novalidate>
+          {% csrf_token %}
+          
+          <!-- Шаг 1: Основная информация -->
+          <div class="form-step active" id="step1">
+            <h4 class="step-title">
+              <span class="step-number">1</span>
+              Основная информация
+            </h4>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="username" class="form-label">
+                  Имя пользователя <span class="text-danger">*</span>
+                </label>
+                <div class="input-group">
+                  <span class="input-group-text">@</span>
+                  <input type="text" 
+                         class="form-control" 
+                         id="username" 
+                         name="username" 
+                         required 
+                         minlength="3"
+                         maxlength="150"
+                         pattern="^[a-zA-Z0-9_]+$"
+                         placeholder="username">
+                  <div class="username-check">
+                    <i class="bi bi-check-circle text-success" style="display: none;"></i>
+                    <i class="bi bi-x-circle text-danger" style="display: none;"></i>
+                    <div class="spinner-border spinner-border-sm text-primary" style="display: none;"></div>
+                  </div>
+                </div>
+                <div class="invalid-feedback"></div>
+                <div class="form-text">Только буквы, цифры и подчеркивания. Минимум 3 символа.</div>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label for="email" class="form-label">
+                  Email <span class="text-danger">*</span>
+                </label>
+                <input type="email" 
+                       class="form-control" 
+                       id="email" 
+                       name="email" 
+                       required 
+                       placeholder="your@email.com">
+                <div class="invalid-feedback">Введите корректный email адрес</div>
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="password1" class="form-label">
+                  Пароль <span class="text-danger">*</span>
+                </label>
+                <div class="password-input">
+                  <input type="password" 
+                         class="form-control" 
+                         id="password1" 
+                         name="password1" 
+                         required 
+                         minlength="8"
+                         placeholder="Введите пароль">
+                  <button type="button" class="password-toggle" onclick="togglePassword('password1')">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="invalid-feedback"></div>
+                <div class="password-strength">
+                  <div class="strength-bar">
+                    <div class="strength-fill"></div>
+                  </div>
+                  <div class="strength-text">Сила пароля</div>
+                </div>
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label for="password2" class="form-label">
+                  Подтвердите пароль <span class="text-danger">*</span>
+                </label>
+                <div class="password-input">
+                  <input type="password" 
+                         class="form-control" 
+                         id="password2" 
+                         name="password2" 
+                         required 
+                         placeholder="Повторите пароль">
+                  <button type="button" class="password-toggle" onclick="togglePassword('password2')">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div class="invalid-feedback"></div>
+              </div>
+            </div>
+            
+            <div class="step-navigation">
+              <button type="button" class="btn btn-success" onclick="nextStep()">
+                Далее <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Шаг 2: Профиль -->
+          <div class="form-step" id="step2">
+            <h4 class="step-title">
+              <span class="step-number">2</span>
+              Настройка профиля
+            </h4>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="first_name" class="form-label">Имя</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="first_name" 
+                       name="first_name" 
+                       maxlength="30"
+                       placeholder="Ваше имя">
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label for="last_name" class="form-label">Фамилия</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="last_name" 
+                       name="last_name" 
+                       maxlength="30"
+                       placeholder="Ваша фамилия">
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="bio" class="form-label">О себе</label>
+              <textarea class="form-control" 
+                        id="bio" 
+                        name="bio" 
+                        rows="3" 
+                        maxlength="500"
+                        placeholder="Расскажите о себе и своей музыке..."></textarea>
+              <div class="form-text">
+                <span id="bioCounter">0</span>/500 символов
+              </div>
+            </div>
+            
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label for="location" class="form-label">Местоположение</label>
+                <input type="text" 
+                       class="form-control" 
+                       id="location" 
+                       name="location" 
+                       maxlength="100"
+                       placeholder="Город, Страна">
+              </div>
+              
+              <div class="col-md-6 mb-3">
+                <label for="website" class="form-label">Веб-сайт</label>
+                <input type="url" 
+                       class="form-control" 
+                       id="website" 
+                       name="website" 
+                       placeholder="https://yourwebsite.com">
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <label for="avatar" class="form-label">Аватар</label>
+              <div class="avatar-upload">
+                <div class="avatar-preview">
+                  <img id="avatarPreview" src="{% static 'images/default-avatar.png' %}" alt="Avatar preview">
+                  <div class="avatar-overlay">
+                    <i class="bi bi-camera"></i>
+                  </div>
+                </div>
+                <input type="file" 
+                       class="form-control" 
+                       id="avatar" 
+                       name="avatar" 
+                       accept="image/*"
+                       style="display: none;">
+                <button type="button" class="btn btn-outline-success" onclick="document.getElementById('avatar').click()">
+                  <i class="bi bi-upload me-1"></i>Выбрать фото
+                </button>
+              </div>
+              <div class="form-text">JPG, PNG, GIF до 5MB. Рекомендуемый размер: 300x300px</div>
+            </div>
+            
+            <div class="step-navigation">
+              <button type="button" class="btn btn-outline-secondary" onclick="prevStep()">
+                <i class="bi bi-arrow-left me-1"></i>Назад
+              </button>
+              <button type="button" class="btn btn-success" onclick="nextStep()">
+                Далее <i class="bi bi-arrow-right ms-1"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Шаг 3: Завершение -->
+          <div class="form-step" id="step3">
+            <h4 class="step-title">
+              <span class="step-number">3</span>
+              Завершение регистрации
+            </h4>
+            
+            <div class="registration-summary">
+              <h5>Проверьте ваши данные:</h5>
+              <div class="summary-item">
+                <strong>Имя пользователя:</strong> <span id="summaryUsername"></span>
+              </div>
+              <div class="summary-item">
+                <strong>Email:</strong> <span id="summaryEmail"></span>
+              </div>
+              <div class="summary-item">
+                <strong>Имя:</strong> <span id="summaryName"></span>
+              </div>
+              <div class="summary-item">
+                <strong>Местоположение:</strong> <span id="summaryLocation"></span>
+              </div>
+            </div>
+            
+            <div class="form-check mb-3">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     id="agreeTerms" 
+                     name="agree_terms" 
+                     required>
+              <label class="form-check-label" for="agreeTerms">
+                Я согласен с <a href="#" target="_blank">Условиями использования</a> 
+                и <a href="#" target="_blank">Политикой конфиденциальности</a> <span class="text-danger">*</span>
+              </label>
+              <div class="invalid-feedback">Необходимо согласиться с условиями</div>
+            </div>
+            
+            <div class="form-check mb-4">
+              <input class="form-check-input" 
+                     type="checkbox" 
+                     id="newsletter" 
+                     name="newsletter">
+              <label class="form-check-label" for="newsletter">
+                Получать новости и обновления ZobeCloud
+              </label>
+            </div>
+            
+            <div class="step-navigation">
+              <button type="button" class="btn btn-outline-secondary" onclick="prevStep()">
+                <i class="bi bi-arrow-left me-1"></i>Назад
+              </button>
+              <button type="submit" class="btn btn-success btn-lg" id="submitBtn">
+                <i class="bi bi-check-circle me-1"></i>Создать аккаунт
+              </button>
+            </div>
+          </div>
+        </form>
+        
+        <!-- Прогресс-бар -->
+        <div class="progress-container">
+          <div class="progress">
+            <div class="progress-bar bg-success" id="progressBar" style="width: 33.33%"></div>
+          </div>
+          <div class="progress-steps">
+            <div class="progress-step active">1</div>
+            <div class="progress-step">2</div>
+            <div class="progress-step">3</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Альтернативные способы входа -->
+      <div class="alternative-auth">
+        <div class="divider">
+          <span>или</span>
+        </div>
+        
+        <div class="social-buttons">
+          <button class="btn btn-outline-primary social-btn" disabled>
+            <i class="bi bi-google me-2"></i>Войти через Google
+          </button>
+        </div>
+        
+        <p class="text-center mt-3">
+          Уже есть аккаунт? 
+          <a href="{% url 'login' %}" class="text-decoration-none">
+            <strong>Войти</strong>
+          </a>
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Основные стили регистрации */
+.register-header {
+  margin-bottom: 2rem;
+}
+
+.register-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.5rem;
+  background: linear-gradient(135deg, var(--text-primary), var(--accent-green));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.register-subtitle {
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0;
+}
+
+.register-card {
+  background: var(--bg-secondary);
+  border-radius: 20px;
+  padding: 2rem;
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-medium);
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+/* Шаги формы */
+.form-step {
+  display: none;
+  animation: fadeInSlide 0.5s ease;
+}
+
+.form-step.active {
+  display: block;
+}
+
+@keyframes fadeInSlide {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.step-title {
+  color: var(--text-primary);
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.step-number {
+  background: var(--accent-green);
+  color: #000;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+/* Поля ввода */
+.form-control {
+  background: var(--bg-tertiary);
+  border: 2px solid var(--border-color);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  color: var(--text-primary);
+  transition: all 0.3s ease;
+}
+
+.form-control:focus {
+  background: var(--bg-tertiary);
+  border-color: var(--accent-green);
+  color: var(--text-primary);
+  box-shadow: 0 0 0 0.2rem rgba(57, 255, 20, 0.25);
+}
+
+.form-label {
+  color: var(--text-primary);
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+}
+
+.form-text {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+/* Проверка имени пользователя */
+.input-group .username-check {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+}
+
+/* Пароль */
+.password-input {
+  position: relative;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  z-index: 10;
+}
+
+.password-toggle:hover {
+  color: var(--accent-green);
+}
+
+.password-strength {
+  margin-top: 0.5rem;
+}
+
+.strength-bar {
+  height: 4px;
+  background: var(--bg-quaternary);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 0.25rem;
+}
+
+.strength-fill {
+  height: 100%;
+  width: 0%;
+  transition: all 0.3s ease;
+  border-radius: 2px;
+}
+
+.strength-fill.weak { background: #dc3545; width: 25%; }
+.strength-fill.fair { background: #fd7e14; width: 50%; }
+.strength-fill.good { background: #ffc107; width: 75%; }
+.strength-fill.strong { background: var(--accent-green); width: 100%; }
+
+.strength-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Загрузка аватара */
+.avatar-upload {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.avatar-preview {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 3px solid var(--accent-green);
+  cursor: pointer;
+}
+
+.avatar-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.avatar-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  color: white;
+  font-size: 1.5rem;
+}
+
+.avatar-preview:hover .avatar-overlay {
+  opacity: 1;
+}
+
+/* Сводка регистрации */
+.registration-summary {
+  background: var(--bg-tertiary);
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border-color);
+}
+
+.summary-item {
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.summary-item:last-child {
+  margin-bottom: 0;
+}
+
+/* Навигация по шагам */
+.step-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.step-navigation .btn {
+  min-width: 120px;
+}
+
+/* Прогресс-бар */
+.progress-container {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-color);
+}
+
+.progress {
+  height: 6px;
+  background: var(--bg-quaternary);
+  border-radius: 3px;
+  margin-bottom: 1rem;
+}
+
+.progress-bar {
+  transition: width 0.5s ease;
+}
+
+.progress-steps {
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+}
+
+.progress-step {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-quaternary);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.progress-step.active {
+  background: var(--accent-green);
+  color: #000;
+}
+
+.progress-step.completed {
+  background: var(--accent-green);
+  color: #000;
+}
+
+/* Альтернативная авторизация */
+.alternative-auth {
+  text-align: center;
+}
+
+.divider {
+  position: relative;
+  margin: 2rem 0;
+  color: var(--text-muted);
+}
+
+.divider::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: var(--border-color);
+}
+
+.divider span {
+  background: var(--bg-primary);
+  padding: 0 1rem;
+  position: relative;
+}
+
+.social-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.social-btn {
+  flex: 1;
+  max-width: 200px;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  transition: all 0.3s ease;
+}
+
+.social-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .register-title {
+    font-size: 2rem;
+  }
+  
+  .register-card {
+    padding: 1.5rem;
+  }
+  
+  .step-navigation {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .step-navigation .btn {
+    width: 100%;
+  }
+  
+  .social-buttons {
+    flex-direction: column;
+  }
+  
+  .avatar-upload {
+    flex-direction: column;
+    text-align: center;
+  }
+}
+
+@media (max-width: 576px) {
+  .register-card {
+    padding: 1rem;
+  }
+  
+  .step-title {
+    font-size: 1.25rem;
+  }
+}
+
+/* Анимации */
+.register-card {
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeInUp 0.6s ease forwards;
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+</style>
+
+<script>
+// ── IIFE: запускается сразу, работает и при обычной загрузке, и при SPA-навигации ──
+(function() {
+
+let currentStep = 1;
+const totalSteps = 3;
+let usernameTimeout = null;
+let usernameValid = false;   // флаг: API подтвердила что ник свободен
+
+// ── Вспомогательные функции ─────────────────────────────────────────────────
+
+function setFieldError(inputEl, feedbackEl, msg) {
+  inputEl.classList.add('is-invalid');
+  inputEl.classList.remove('is-valid');
+  if (feedbackEl) feedbackEl.textContent = msg;
+}
+
+function setFieldOk(inputEl) {
+  inputEl.classList.remove('is-invalid');
+  inputEl.classList.add('is-valid');
+}
+
+function clearField(inputEl) {
+  inputEl.classList.remove('is-invalid', 'is-valid');
+}
+
+// ── Переключение видимости пароля ────────────────────────────────────────────
+
+window.togglePassword = function(fieldId) {
+  const field = document.getElementById(fieldId);
+  const icon  = field.parentElement.querySelector('.password-toggle i');
+  if (field.type === 'password') { field.type = 'text';     icon.className = 'bi bi-eye-slash'; }
+  else                           { field.type = 'password'; icon.className = 'bi bi-eye'; }
+};
+
+// ── Сила пароля ──────────────────────────────────────────────────────────────
+
+function updatePasswordStrength() {
+  const pw  = document.getElementById('password1').value;
+  const fill = document.querySelector('.strength-fill');
+  const text = document.querySelector('.strength-text');
+  if (!fill || !text) return;
+  let s = 0;
+  if (pw.length >= 8)            s++;
+  if (/[a-z]/.test(pw))          s++;
+  if (/[A-Z]/.test(pw))          s++;
+  if (/[0-9]/.test(pw))          s++;
+  if (/[^A-Za-z0-9]/.test(pw))  s++;
+  fill.className = 'strength-fill';
+  const map = [[0,'','Сила пароля'],[2,'weak','Слабый'],[3,'fair','Средний'],[4,'good','Хороший'],[5,'strong','Сильный']];
+  const [,cls,label] = map.reduce((a,b) => s >= b[0] ? b : a, map[0]);
+  if (cls) fill.classList.add(cls);
+  text.textContent = label;
+}
+
+// ── Проверка доступности ника ─────────────────────────────────────────────────
+
+function checkUsernameAvailability() {
+  const el       = document.getElementById('username');
+  const val      = el.value.trim();
+  const wrap     = document.querySelector('.username-check');
+  const ok       = wrap.querySelector('.bi-check-circle');
+  const err      = wrap.querySelector('.bi-x-circle');
+  const spin     = wrap.querySelector('.spinner-border');
+  const feedback = el.closest('.col-md-6').querySelector('.invalid-feedback');
+
+  ok.style.display = err.style.display = spin.style.display = 'none';
+  usernameValid = false;
+
+  if (val.length < 3) return;
+  if (!/^[a-zA-Z0-9_]+$/.test(val)) return;
+
+  spin.style.display = 'block';
+  clearTimeout(usernameTimeout);
+  usernameTimeout = setTimeout(() => {
+    fetch(`/api/check-username/?username=${encodeURIComponent(val)}`)
+      .then(r => r.json())
+      .then(data => {
+        spin.style.display = 'none';
+        if (data.available) {
+          ok.style.display = 'block';
+          setFieldOk(el);
+          usernameValid = true;
+        } else {
+          err.style.display = 'block';
+          setFieldError(el, feedback, data.message || 'Имя занято');
+          usernameValid = false;
+        }
+      })
+      .catch(() => { spin.style.display = 'none'; });
+  }, 500);
+}
+
+// ── Валидация шага ───────────────────────────────────────────────────────────
+
+function validateCurrentStep() {
+  let ok = true;
+
+  if (currentStep === 1) {
+    const uEl  = document.getElementById('username');
+    const uFb  = uEl.closest('.col-md-6').querySelector('.invalid-feedback');
+    const eEl  = document.getElementById('email');
+    const eFb  = eEl.nextElementSibling;
+    const p1El = document.getElementById('password1');
+    const p1Fb = p1El.closest('.password-input').nextElementSibling;
+    const p2El = document.getElementById('password2');
+    const p2Fb = p2El.closest('.password-input').nextElementSibling;
+
+    // Имя пользователя
+    if (!uEl.value.trim()) {
+      setFieldError(uEl, uFb, 'Введите имя пользователя'); ok = false;
+    } else if (uEl.value.trim().length < 3) {
+      setFieldError(uEl, uFb, 'Минимум 3 символа'); ok = false;
+    } else if (!/^[a-zA-Z0-9_]+$/.test(uEl.value)) {
+      setFieldError(uEl, uFb, 'Только буквы, цифры и подчёркивания'); ok = false;
+    } else if (!usernameValid) {
+      setFieldError(uEl, uFb, 'Подождите проверки или имя уже занято'); ok = false;
+    } else {
+      setFieldOk(uEl);
+    }
+
+    // Email
+    if (!eEl.value.trim() || !eEl.validity.valid) {
+      setFieldError(eEl, eFb, 'Введите корректный email'); ok = false;
+    } else {
+      setFieldOk(eEl);
+    }
+
+    // Пароль
+    if (p1El.value.length < 8) {
+      setFieldError(p1El, p1Fb, 'Пароль должен быть не менее 8 символов'); ok = false;
+    } else {
+      setFieldOk(p1El);
+    }
+
+    // Подтверждение пароля
+    if (!p2El.value) {
+      setFieldError(p2El, p2Fb, 'Повторите пароль'); ok = false;
+    } else if (p1El.value !== p2El.value) {
+      setFieldError(p2El, p2Fb, 'Пароли не совпадают'); ok = false;
+    } else {
+      setFieldOk(p2El);
+    }
+  }
+
+  return ok;
+}
+
+// ── Навигация между шагами ───────────────────────────────────────────────────
+
+window.nextStep = function() {
+  if (!validateCurrentStep()) return;
+  if (currentStep >= totalSteps) return;
+
+  document.getElementById(`step${currentStep}`).classList.remove('active');
+  document.querySelector(`.progress-step:nth-child(${currentStep})`).classList.add('completed');
+  currentStep++;
+  document.getElementById(`step${currentStep}`).classList.add('active');
+  document.querySelector(`.progress-step:nth-child(${currentStep})`).classList.add('active');
+  document.getElementById('progressBar').style.width = `${(currentStep / totalSteps) * 100}%`;
+  if (currentStep === 3) updateSummary();
+  document.querySelector('.register-card').scrollIntoView({ behavior: 'smooth' });
+};
+
+window.prevStep = function() {
+  if (currentStep <= 1) return;
+  document.getElementById(`step${currentStep}`).classList.remove('active');
+  document.querySelector(`.progress-step:nth-child(${currentStep})`).classList.remove('active');
+  currentStep--;
+  document.getElementById(`step${currentStep}`).classList.add('active');
+  document.getElementById('progressBar').style.width = `${(currentStep / totalSteps) * 100}%`;
+  document.querySelector('.register-card').scrollIntoView({ behavior: 'smooth' });
+};
+
+// ── Сводка ───────────────────────────────────────────────────────────────────
+
+function updateSummary() {
+  document.getElementById('summaryUsername').textContent  = document.getElementById('username').value  || '—';
+  document.getElementById('summaryEmail').textContent     = document.getElementById('email').value     || '—';
+  const fn = document.getElementById('first_name').value;
+  const ln = document.getElementById('last_name').value;
+  document.getElementById('summaryName').textContent      = `${fn} ${ln}`.trim() || '—';
+  document.getElementById('summaryLocation').textContent  = document.getElementById('location').value  || '—';
+}
+
+// ── Аватар ───────────────────────────────────────────────────────────────────
+
+function previewAvatar(input) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = e => { document.getElementById('avatarPreview').src = e.target.result; };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+// ── Счётчик био ──────────────────────────────────────────────────────────────
+
+function updateBioCounter() {
+  const bio     = document.getElementById('bio');
+  const counter = document.getElementById('bioCounter');
+  if (!bio || !counter) return;
+  counter.textContent = bio.value.length;
+  counter.style.color = bio.value.length > 450 ? 'var(--danger-color)' : 'var(--text-muted)';
+}
+
+// ── Привязка событий (сразу, без DOMContentLoaded — совместимо с SPA) ────────
+
+const uEl  = document.getElementById('username');
+const p1El = document.getElementById('password1');
+const p2El = document.getElementById('password2');
+const bioEl = document.getElementById('bio');
+const avatarEl = document.getElementById('avatar');
+const avatarPreview = document.querySelector('.avatar-preview');
+const form = document.getElementById('registerForm');
+
+if (uEl)  uEl.addEventListener('input', checkUsernameAvailability);
+if (p1El) p1El.addEventListener('input', updatePasswordStrength);
+if (p2El) p2El.addEventListener('input', function() {
+  const p1Fb = this.closest('.password-input').nextElementSibling;
+  if (p1El.value && this.value && p1El.value === this.value) setFieldOk(this);
+  else if (this.value) setFieldError(this, p1Fb, 'Пароли не совпадают');
+});
+if (bioEl)        bioEl.addEventListener('input', updateBioCounter);
+if (avatarEl)     avatarEl.addEventListener('change', () => previewAvatar(avatarEl));
+if (avatarPreview) avatarPreview.addEventListener('click', () => avatarEl?.click());
+
+if (form) {
+  form.addEventListener('submit', function(e) {
+    if (!validateCurrentStep()) { e.preventDefault(); return false; }
+    const btn = document.getElementById('submitBtn');
+    if (btn) {
+      const orig = btn.innerHTML;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Создание аккаунта...';
+      btn.disabled = true;
+      setTimeout(() => { btn.innerHTML = orig; btn.disabled = false; }, 5000);
+    }
+  });
+}
+
+updateBioCounter();
+
+})(); // конец IIFE
+</script>
+{% endblock %}

@@ -1,0 +1,1152 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}{{ track.title }} — ZobeCloud{% endblock %}
+
+{% block content %}
+{% if track.user == request.user %}
+<div class="modal fade" id="deleteModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="background:var(--bg-secondary);border:1px solid var(--border-color);">
+      <div class="modal-header" style="border-color:var(--border-color);">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Удалить трек</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Вы уверены, что хотите удалить <strong>«{{ track.title }}»</strong>?</p>
+        <div class="alert alert-warning py-2" style="background:rgba(248,181,57,0.1);border-color:rgba(248,181,57,0.3);color:var(--warning-color);">
+          <i class="bi bi-exclamation-triangle me-1"></i> Это действие нельзя отменить.
+        </div>
+      </div>
+      <div class="modal-footer" style="border-color:var(--border-color);">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form method="post" action="{% url 'delete_track' track.pk %}" style="display:inline;">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Удалить навсегда</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="container py-4" style="max-width: 900px;">
+
+  <!-- Back -->
+  <a href="javascript:history.back()" class="td-back-link mb-4 d-inline-flex align-items-center gap-2">
+    <i class="bi bi-arrow-left"></i> Назад
+  </a>
+
+  <!-- ===== HERO CARD ===== -->
+  <div class="td-hero-card mb-3">
+    <!-- Blurred background -->
+    {% if track.cover %}
+    <div class="td-hero-bg" style="background-image:url('{{ track.cover.url }}');"></div>
+    {% endif %}
+    <div class="td-hero-overlay"></div>
+
+    <div class="td-hero-body">
+      <!-- Cover -->
+      <div class="td-cover-wrap">
+        {% if track.cover %}
+          <img src="{{ track.cover.url }}" alt="{{ track.title }}" class="td-cover-img">
+        {% else %}
+          <div class="td-cover-default">
+            <i class="bi bi-music-note-beamed"></i>
+          </div>
+        {% endif %}
+        {% if track.user.profile.is_premium %}
+          <span class="td-premium-dot" title="Премиум автор"><i class="bi bi-star-fill"></i></span>
+        {% endif %}
+      </div>
+
+      <!-- Info -->
+      <div class="td-hero-info">
+        <div class="td-visibility-badge mb-2">
+          {% if track.visibility == 'public' %}
+            <span class="badge" style="background:rgba(89,211,68,0.15);color:var(--accent-green);border:1px solid rgba(89,211,68,0.3);">
+              <i class="bi bi-globe2 me-1"></i>Публичный
+            </span>
+          {% elif track.visibility == 'unlisted' %}
+            <span class="badge" style="background:rgba(137,155,253,0.15);color:var(--info-color);border:1px solid rgba(137,155,253,0.3);">
+              <i class="bi bi-link-45deg me-1"></i>По ссылке
+            </span>
+          {% else %}
+            <span class="badge" style="background:rgba(243,95,107,0.15);color:var(--danger-color);border:1px solid rgba(243,95,107,0.3);">
+              <i class="bi bi-lock-fill me-1"></i>Приватный
+            </span>
+          {% endif %}
+        </div>
+
+        <h1 class="td-title">{{ track.title }}</h1>
+
+        {% if track.album %}
+        <div class="td-album-badge mb-2">
+          <a href="{% url 'album_detail' track.album.pk %}" class="td-album-link">
+            {% if track.album.cover %}
+              <img src="{{ track.album.cover.url }}" class="td-album-mini-cover" alt="">
+            {% else %}
+              <span class="td-album-mini-cover td-album-mini-default"><i class="bi bi-collection-fill"></i></span>
+            {% endif %}
+            <span class="td-album-label">из альбома: <strong>{{ track.album.title }}</strong></span>
+          </a>
+        </div>
+        {% endif %}
+
+        <a href="{% url 'public_profile' track.user.username %}" class="td-artist-link">
+          <img src="{{ track.user.profile.avatar_url }}" class="td-artist-avatar rounded-circle" alt="">
+          {{ track.user.username }}
+          {% if track.user.profile.is_premium %}
+            <i class="bi bi-star-fill" style="color:#ffc107;font-size:0.75rem;"></i>
+          {% endif %}
+        </a>
+
+        <div class="td-stats-row mt-3">
+          <span class="td-stat"><i class="bi bi-play-fill"></i> {{ track.plays_count }}</span>
+          <span class="td-stat"><i class="bi bi-heart-fill"></i> <span id="headerLikeCount">{{ likes_count }}</span></span>
+          <span class="td-stat"><i class="bi bi-chat-fill"></i> {{ comments.count }}</span>
+          <span class="td-stat"><i class="bi bi-calendar3"></i> {{ track.uploaded_at|date:"d.m.Y" }}</span>
+        </div>
+
+        {% if track.genre %}
+        <div class="mt-3">
+          <span class="td-genre-pill">
+            {% if track.genre.color %}<span class="td-genre-dot" style="background:{{ track.genre.color }};"></span>{% endif %}
+            {{ track.genre.name }}
+          </span>
+        </div>
+        {% endif %}
+
+        {% if track.tags.exists %}
+        <div class="mt-2 d-flex flex-wrap gap-1">
+          {% for tag in track.tags.all %}
+            <span class="td-tag-pill">#{{ tag.name }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ACTION BAR ===== -->
+  <div class="td-action-bar mb-4">
+    <button class="td-play-btn" id="bigPlayBtn">
+      <i class="bi bi-play-circle-fill"></i>
+      <span id="playBtnText">Слушать</span>
+    </button>
+
+    {% if user.is_authenticated %}
+      <button class="td-action-btn {% if user_liked %}td-liked{% endif %}" id="likeBtn" data-track-id="{{ track.id }}" title="Лайк">
+        <i class="bi bi-heart{% if user_liked %}-fill{% endif %}"></i>
+        <span class="td-action-label"><span class="like-count">{{ track.likes_count }}</span></span>
+      </button>
+    {% endif %}
+
+    <button class="td-action-btn" id="shareBtn" title="Поделиться">
+      <i class="bi bi-share-fill"></i>
+      <span class="td-action-label">Поделиться</span>
+    </button>
+
+    {% if user.is_authenticated and track.user != request.user %}
+      <button class="td-action-btn" id="addToPlaylistBtn" title="В плейлист">
+        <i class="bi bi-plus-circle-fill"></i>
+        <span class="td-action-label">Плейлист</span>
+      </button>
+    {% endif %}
+
+    {% if track.allow_downloads %}
+      <a href="{{ track.audio_file.url }}" download class="td-action-btn" title="Скачать">
+        <i class="bi bi-download"></i>
+        <span class="td-action-label">Скачать</span>
+      </a>
+    {% endif %}
+
+    {% if track.user == request.user %}
+      {% if user.profile.is_premium %}
+      <a href="{% url 'premium_analytics' %}" class="td-action-btn" title="Аналитика" style="background:rgba(89,211,68,.1);border-color:rgba(89,211,68,.3);">
+        <i class="bi bi-bar-chart-line-fill" style="color:var(--accent-green);"></i>
+        <span class="td-action-label" style="color:var(--accent-green);">Аналитика</span>
+      </a>
+      {% endif %}
+      <a href="{% url 'edit_track' track.pk %}" class="td-action-btn" title="Редактировать">
+        <i class="bi bi-pencil-fill"></i>
+        <span class="td-action-label">Изменить</span>
+      </a>
+      <button class="td-action-btn td-action-danger" id="deleteBtn" title="Удалить">
+        <i class="bi bi-trash-fill"></i>
+        <span class="td-action-label">Удалить</span>
+      </button>
+    {% endif %}
+  </div>
+
+  <!-- ===== WAVEFORM ===== -->
+  <div class="td-waveform-wrap mb-4" id="waveformWrap">
+    <div class="td-waveform-bars" id="tdWaveformBg"></div>
+    <div class="td-waveform-bars td-waveform-fg" id="tdWaveformFg"></div>
+    <div class="td-waveform-seek" id="waveformSeek"></div>
+    <div class="td-waveform-times">
+      <span id="wfCurTime">0:00</span>
+      <span id="wfDurTime">0:00</span>
+    </div>
+  </div>
+
+  <!-- ===== DESCRIPTION ===== -->
+  {% if track.description %}
+  <div class="td-card mb-4">
+    <div class="td-card-title"><i class="bi bi-text-left me-2"></i>Описание</div>
+    <p class="mb-0" style="color:var(--text-secondary);line-height:1.7;">{{ track.description|linebreaks }}</p>
+  </div>
+  {% endif %}
+
+  <!-- ===== COMMENTS ===== -->
+  <div class="td-card">
+    <div class="td-card-title mb-3">
+      <i class="bi bi-chat-dots me-2"></i>
+      Комментарии <span class="td-count-pill" id="commentsCountBadge">{{ comments.count }}</span>
+    </div>
+
+    {% if user.is_authenticated %}
+    <div class="td-comment-form mb-4">
+      <div class="d-flex gap-3 align-items-start">
+        <div class="position-relative flex-shrink-0">
+          <img src="{{ user.profile.avatar_url }}" class="rounded-circle" width="38" height="38" style="object-fit:cover;">
+          {% if user.profile.is_premium %}
+            <span class="td-comment-premium-dot"><i class="bi bi-star-fill"></i></span>
+          {% endif %}
+        </div>
+        <form id="commentForm" class="flex-grow-1">
+          {% csrf_token %}
+          <textarea name="content" id="commentContent"
+                    class="td-comment-textarea"
+                    placeholder="Напишите комментарий..."
+                    rows="2" maxlength="500" required></textarea>
+          <div class="d-flex justify-content-between align-items-center mt-2">
+            <span class="td-char-counter"><span id="charCount">0</span>/500</span>
+            <button type="submit" class="td-submit-btn">
+              <i class="bi bi-send me-1"></i>Отправить
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+    {% else %}
+    <div class="td-auth-prompt mb-4">
+      <i class="bi bi-info-circle me-2"></i>
+      <a href="{% url 'login' %}?next={{ request.path }}">Войдите</a> или
+      <a href="{% url 'register' %}?next={{ request.path }}">зарегистрируйтесь</a>,
+      чтобы оставлять комментарии
+    </div>
+    {% endif %}
+
+    <!-- Comments list -->
+    <div class="td-comments-list" id="commentsList">
+      {% for comment in comments %}
+      <div class="td-comment {% if comment.user.profile.is_premium %}td-comment-premium{% endif %}" data-comment-id="{{ comment.id }}">
+        <div class="position-relative flex-shrink-0">
+          <img src="{{ comment.user.profile.avatar_url }}" class="rounded-circle" width="40" height="40" style="object-fit:cover;" alt="">
+          {% if comment.user.profile.is_premium %}
+            <span class="td-comment-premium-dot"><i class="bi bi-star-fill"></i></span>
+          {% endif %}
+        </div>
+        <div class="flex-grow-1 min-w-0">
+          <div class="d-flex align-items-center justify-content-between mb-1 flex-wrap gap-1">
+            <span class="td-comment-author">
+              <a href="{% url 'public_profile' comment.user.username %}">{{ comment.user.username }}</a>
+              {% if comment.user.profile.is_premium %}
+                <i class="bi bi-star-fill" style="color:#ffc107;font-size:0.65rem;"></i>
+              {% endif %}
+            </span>
+            <span class="td-comment-date">{{ comment.created_at|timesince }} назад</span>
+          </div>
+          <div class="td-comment-text">{{ comment.content|linebreaks }}</div>
+          <div class="td-comment-actions">
+            {% if user.is_authenticated %}
+              <button class="td-comment-action like-comment-btn {% if comment.id in user_liked_comments %}td-comment-liked{% endif %}"
+                      data-comment-id="{{ comment.id }}">
+                <i class="bi bi-heart{% if comment.id in user_liked_comments %}-fill{% endif %}"></i>
+                <span class="comment-likes-count">{{ comment.likes_count }}</span>
+              </button>
+            {% endif %}
+            {% if comment.user == user %}
+              <button class="td-comment-action td-comment-delete delete-comment-btn" data-comment-id="{{ comment.id }}">
+                <i class="bi bi-trash"></i> Удалить
+              </button>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="td-empty-comments" id="noCommentsMsg">
+        <i class="bi bi-chat-dots"></i>
+        <p class="mt-2 mb-0">Нет комментариев. Будьте первым!</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+
+<style>
+/* ===== BACK LINK ===== */
+.td-back-link {
+  color: var(--text-muted);
+  text-decoration: none;
+  font-size: 0.9rem;
+  transition: color 0.2s;
+}
+.td-back-link:hover { color: var(--accent-green); }
+
+/* ===== HERO CARD ===== */
+.td-hero-card {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+}
+.td-hero-bg {
+  position: absolute; inset: 0;
+  background-size: cover;
+  background-position: center;
+  filter: blur(40px) saturate(0.6);
+  transform: scale(1.1);
+  opacity: 0.18;
+}
+.td-hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, var(--bg-secondary) 30%, rgba(30,30,30,0.85));
+}
+.td-hero-body {
+  position: relative;
+  display: flex;
+  gap: 28px;
+  padding: 28px;
+  align-items: flex-start;
+}
+
+/* Cover */
+.td-cover-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  overflow: visible;
+}
+.td-cover-img {
+  width: 180px;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  display: block;
+}
+.td-cover-default {
+  width: 180px;
+  height: 180px;
+  border-radius: 12px;
+  background: var(--bg-tertiary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3.5rem;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+}
+.td-premium-dot {
+  position: absolute;
+  top: -6px; right: -6px;
+  width: 22px; height: 22px;
+  background: linear-gradient(135deg, #ffc107, #ffeb3b);
+  color: #000;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.6rem;
+  box-shadow: 0 2px 8px rgba(255,193,7,0.4);
+  z-index: 2;
+}
+
+/* Track info */
+.td-hero-info { flex: 1; min-width: 0; }
+.td-title {
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1.2;
+  color: var(--text-primary);
+  margin: 0 0 10px;
+}
+.td-artist-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  text-decoration: none;
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 1rem;
+  transition: color 0.2s;
+}
+.td-artist-link:hover { color: var(--accent-green); }
+.td-artist-avatar { width: 26px; height: 26px; object-fit: cover; }
+.td-stats-row { display: flex; flex-wrap: wrap; gap: 16px; }
+.td-stat {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+}
+.td-stat i { color: var(--accent-green); font-size: 0.75rem; }
+.td-genre-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 3px 12px;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+}
+.td-genre-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.td-tag-pill {
+  background: rgba(89,211,68,0.08);
+  border: 1px solid rgba(89,211,68,0.2);
+  color: var(--accent-green);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-size: 0.75rem;
+}
+
+/* ===== ACTION BAR ===== */
+.td-action-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.td-play-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--accent-green);
+  color: #000;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 22px;
+  height: 42px;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 16px rgba(89,211,68,0.3);
+}
+.td-play-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.td-play-btn.playing { background: var(--accent-green-dark); }
+.td-play-btn i { font-size: 1.3rem; }
+
+.td-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 0 18px;
+  height: 42px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.td-action-btn:hover {
+  border-color: var(--accent-green);
+  color: var(--accent-green);
+  background: rgba(89,211,68,0.06);
+}
+.td-action-btn.td-liked {
+  background: rgba(231,76,60,0.08);
+  border-color: rgba(231,76,60,0.5);
+  color: #e74c3c;
+}
+.td-action-btn.td-liked:hover { background: rgba(231,76,60,0.15); }
+.td-action-btn.td-action-danger:hover {
+  border-color: var(--danger-color);
+  color: var(--danger-color);
+  background: rgba(243,95,107,0.06);
+}
+.td-action-label { font-size: 0.85rem; }
+
+/* ===== CARDS ===== */
+.td-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+.td-card-title {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+.td-count-pill {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 1px 9px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+
+/* ===== COMMENT FORM ===== */
+.td-comment-textarea {
+  width: 100%;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 10px 14px;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 70px;
+  transition: border-color 0.2s;
+}
+.td-comment-textarea:focus {
+  outline: none;
+  border-color: var(--accent-green);
+  box-shadow: 0 0 0 2px rgba(89,211,68,0.15);
+}
+.td-comment-textarea::placeholder { color: var(--text-muted); }
+.td-char-counter { font-size: 0.78rem; color: var(--text-muted); }
+.td-submit-btn {
+  background: var(--accent-green);
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 16px;
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.td-submit-btn:hover { filter: brightness(1.1); }
+.td-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.td-auth-prompt {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 14px 16px;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+.td-auth-prompt a { color: var(--accent-green); text-decoration: none; font-weight: 600; }
+.td-auth-prompt a:hover { text-decoration: underline; }
+
+/* ===== COMMENTS LIST ===== */
+.td-comments-list { display: flex; flex-direction: column; gap: 1px; }
+.td-comment {
+  display: flex;
+  gap: 14px;
+  padding: 16px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  transition: background 0.15s;
+}
+.td-comment:hover { background: var(--bg-tertiary); border-color: var(--border-color); }
+.td-comment-premium { border-color: rgba(255,193,7,0.15) !important; }
+.td-comment-premium:hover { border-color: rgba(255,193,7,0.3) !important; }
+.td-comment-premium-dot {
+  position: absolute;
+  top: -3px; right: -3px;
+  width: 14px; height: 14px;
+  background: linear-gradient(135deg, #ffc107, #ffeb3b);
+  color: #000;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.45rem;
+}
+.td-comment-author a {
+  color: var(--text-primary);
+  font-weight: 600;
+  text-decoration: none;
+  font-size: 0.9rem;
+}
+.td-comment-author a:hover { color: var(--accent-green); }
+.td-comment-date { font-size: 0.75rem; color: var(--text-muted); }
+.td-comment-text { color: var(--text-secondary); font-size: 0.9rem; line-height: 1.6; }
+.td-comment-text p { margin: 0; }
+.td-comment-actions { display: flex; gap: 8px; margin-top: 8px; }
+.td-comment-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  cursor: pointer;
+  padding: 3px 8px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+.td-comment-action:hover { background: var(--bg-quaternary); color: var(--text-primary); }
+.td-comment-action.td-comment-liked { color: var(--danger-color); }
+.td-comment-action.td-comment-liked:hover { background: rgba(243,95,107,0.1); }
+.td-comment-delete:hover { color: var(--danger-color) !important; background: rgba(243,95,107,0.08) !important; }
+
+.td-empty-comments {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--text-muted);
+}
+.td-empty-comments i { font-size: 2.5rem; opacity: 0.4; }
+
+/* ===== ALBUM BADGE ===== */
+.td-album-badge { display: inline-flex; }
+.td-album-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  text-decoration: none;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  transition: color 0.2s;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  padding: 3px 10px 3px 4px;
+}
+.td-album-link:hover { color: var(--accent-green); border-color: var(--accent-green); }
+.td-album-mini-cover {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.td-album-mini-default {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  font-size: 0.6rem;
+}
+.td-album-label strong { color: var(--text-secondary); }
+
+/* ===== WAVEFORM ===== */
+.td-waveform-wrap {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 14px;
+  padding: 16px 20px 28px;
+  overflow: hidden;
+  cursor: pointer;
+  user-select: none;
+}
+.td-waveform-bars {
+  position: relative;
+  height: 70px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  pointer-events: none;
+}
+.td-waveform-fg {
+  position: absolute;
+  inset: 16px 20px 28px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  overflow: hidden;
+  clip-path: inset(0 100% 0 0);
+  pointer-events: none;
+  transition: none;
+}
+.td-waveform-bar {
+  flex: 1;
+  border-radius: 2px 2px 0 0;
+  min-width: 3px;
+}
+.td-waveform-bars:not(.td-waveform-fg) .td-waveform-bar {
+  background: var(--bg-tertiary);
+  opacity: 0.5;
+}
+.td-waveform-fg .td-waveform-bar {
+  background: var(--accent-green);
+}
+.td-waveform-seek {
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+.td-waveform-times {
+  position: absolute;
+  bottom: 8px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.td-waveform-wrap:hover .td-waveform-bars:not(.td-waveform-fg) .td-waveform-bar {
+  opacity: 0.7;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 640px) {
+  .td-hero-body { flex-direction: column; align-items: center; text-align: center; padding: 20px; gap: 18px; }
+  .td-cover-wrap { width: 140px; height: 140px; }
+  .td-cover-img, .td-cover-default { width: 140px; height: 140px; }
+  .td-title { font-size: 1.4rem; }
+  .td-stats-row { justify-content: center; }
+  .td-genre-pill, .td-tag-pill { font-size: 0.7rem; }
+  .td-action-bar { justify-content: center; }
+  .td-action-label { display: none; }
+  .td-card { padding: 16px; }
+}
+</style>
+
+<script>
+(function () {
+  const bigPlayBtn = document.getElementById('bigPlayBtn');
+  const likeBtn = document.getElementById('likeBtn');
+  const shareBtn = document.getElementById('shareBtn');
+  const addToPlaylistBtn = document.getElementById('addToPlaylistBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const commentForm = document.getElementById('commentForm');
+  const commentContent = document.getElementById('commentContent');
+  const charCount = document.getElementById('charCount');
+
+  if (bigPlayBtn) bigPlayBtn.addEventListener('click', playTrack);
+  if (likeBtn) likeBtn.addEventListener('click', () => toggleLike({{ track.id }}));
+  if (shareBtn) shareBtn.addEventListener('click', shareTrack);
+  if (addToPlaylistBtn) addToPlaylistBtn.addEventListener('click', showAddToPlaylistModal);
+  if (deleteBtn) deleteBtn.addEventListener('click', () => {
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+  });
+
+  if (commentContent && charCount) {
+    commentContent.addEventListener('input', function () {
+      const len = this.value.length;
+      charCount.textContent = len;
+      charCount.style.color = len > 450 ? 'var(--danger-color)' : len > 400 ? 'var(--warning-color)' : '';
+    });
+  }
+
+  if (commentForm) commentForm.addEventListener('submit', e => { e.preventDefault(); submitComment(); });
+
+  document.querySelectorAll('.like-comment-btn').forEach(btn =>
+    btn.addEventListener('click', () => toggleCommentLike(btn.dataset.commentId))
+  );
+  document.querySelectorAll('.delete-comment-btn').forEach(btn =>
+    btn.addEventListener('click', () => deleteComment(btn.dataset.commentId))
+  );
+
+  // ── Waveform ──────────────────────────────────────────────────────────
+  (function initWaveform() {
+    const BARS       = 140;
+    const THIS_ID    = {{ track.id }};
+    const AUDIO_URL  = '{{ track.audio_file.url|escapejs }}';
+
+    const bgEl   = document.getElementById('tdWaveformBg');
+    const fgEl   = document.getElementById('tdWaveformFg');
+    const seekEl = document.getElementById('waveformSeek');
+    const wfCur  = document.getElementById('wfCurTime');
+    const wfDur  = document.getElementById('wfDurTime');
+    if (!bgEl || !fgEl || !seekEl) return;
+
+    // ── Создать DOM-бары из массива высот ────────────────────────────
+    function makeBars(container, heights) {
+      container.innerHTML = '';
+      heights.forEach(h => {
+        const b = document.createElement('div');
+        b.className = 'td-waveform-bar';
+        b.style.height = h + 'px';
+        container.appendChild(b);
+      });
+    }
+
+    // ── LCG-заглушка (пока грузится реальная волна) ──────────────────
+    function lcgBars() {
+      function lcg(s) { return ((s * 1664525 + 1013904223) & 0xffffffff) >>> 0; }
+      const h = [];
+      let s = THIS_ID;
+      for (let i = 0; i < BARS; i++) {
+        s = lcg(s); s = lcg(s);
+        h.push(Math.min(64, Math.max(5, Math.floor(12 + (s % 52) * 0.9))));
+      }
+      return h;
+    }
+
+    // Показываем LCG-бары сразу
+    const placeholder = lcgBars();
+    makeBars(bgEl, placeholder);
+    makeBars(fgEl, placeholder);
+
+    // ── Загрузка и декодирование реальной амплитуды (с кэшем) ───────
+    const CACHE_KEY = 'zc_wf3_' + THIS_ID + '_' + BARS;
+    let cachedHeights = null;
+    try { const r = localStorage.getItem(CACHE_KEY); if (r) cachedHeights = JSON.parse(r); } catch(_) {}
+
+    if (cachedHeights && cachedHeights.length === BARS) {
+      // Используем кэш — мгновенно, без загрузки
+      makeBars(bgEl, cachedHeights);
+      makeBars(fgEl, cachedHeights);
+      updateProgress();
+    } else {
+      // Загружаем и декодируем аудиофайл для получения реальной амплитуды
+      (async function() {
+        try {
+          const res = await fetch(AUDIO_URL, { cache: 'force-cache' });
+          const buf = await res.arrayBuffer();
+          const ctx = new (window.AudioContext || window.webkitAudioContext)();
+          const decoded = await ctx.decodeAudioData(buf);
+          ctx.close();
+
+          const data = decoded.getChannelData(0);
+          const step = Math.floor(data.length / BARS);
+          const amps = [];
+          for (let i = 0; i < BARS; i++) {
+            let sum = 0;
+            const off = i * step;
+            for (let j = 0; j < step; j++) sum += data[off + j] ** 2;
+            amps.push(Math.sqrt(sum / step));
+          }
+          const max = Math.max(...amps, 0.001);
+          const real = amps.map(a => Math.max(4, Math.round((a / max) * 64)));
+
+          // Сохраняем в localStorage — при следующем открытии страницы будет мгновенно
+          try { localStorage.setItem(CACHE_KEY, JSON.stringify(real)); } catch(_) {}
+
+          makeBars(bgEl, real);
+          makeBars(fgEl, real);
+          updateProgress();
+        } catch (_) { /* оставляем LCG-заглушку */ }
+      })();
+    }
+
+    // ── Форматирование времени ────────────────────────────────────────
+    function fmt(t) {
+      if (!t || isNaN(t)) return '0:00';
+      return Math.floor(t / 60) + ':' + String(Math.floor(t % 60)).padStart(2, '0');
+    }
+
+    // ── Обновление прогресса — только для текущего трека ─────────────
+    function updateProgress() {
+      const audio  = document.getElementById('zpAudio');
+      if (!audio) return;
+      const playing = window.ZobePlayer?.getCurrentTrack();
+      const isThis  = playing && playing.id === THIS_ID;
+      const pct     = (isThis && audio.duration) ? audio.currentTime / audio.duration : 0;
+
+      fgEl.style.clipPath = 'inset(0 ' + ((1 - pct) * 100).toFixed(2) + '% 0 0)';
+      if (wfCur) wfCur.textContent = isThis ? fmt(audio.currentTime) : '0:00';
+      if (wfDur) wfDur.textContent = isThis ? fmt(audio.duration) : '—';
+    }
+
+    const audio = document.getElementById('zpAudio');
+    if (audio) {
+      audio.addEventListener('timeupdate',     updateProgress);
+      audio.addEventListener('loadedmetadata', updateProgress);
+      audio.addEventListener('durationchange', updateProgress);
+      // 'seeked' срабатывает когда ZobePlayer восстанавливает позицию после перезагрузки
+      audio.addEventListener('seeked',         updateProgress);
+      updateProgress();
+    }
+
+    // После перезагрузки ZobePlayer инициализируется в DOMContentLoaded,
+    // а этот скрипт выполняется раньше — ждём готовности плеера
+    (function pollPlayer() {
+      if (window.ZobePlayer) {
+        updateProgress();
+      } else {
+        var t = setTimeout(function() { clearTimeout(t); pollPlayer(); }, 80);
+      }
+    })();
+
+    // Глобальная синхронизация: при смене трека в плеере — обновляем волну
+    document.addEventListener('zp:trackchange', function() {
+      updateProgress();
+    });
+
+    // ── Перемотка — Pointer Capture (не накапливает document-listeners) ─
+    function seekFromEvent(e) {
+      const au = document.getElementById('zpAudio');
+      if (!au || !au.duration) return;
+      // Разрешаем перемотку только если играет этот трек
+      if (!window.ZobePlayer?.getCurrentTrack() || window.ZobePlayer.getCurrentTrack().id !== THIS_ID) {
+        // Включаем трек и ждём — тогда перемотаем
+        playTrack();
+        return;
+      }
+      const r   = seekEl.getBoundingClientRect();
+      if (!r.width) return;
+      const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
+      au.currentTime = pct * au.duration;
+      updateProgress();
+    }
+
+    seekEl.addEventListener('pointerdown', e => {
+      e.preventDefault();
+      seekEl.setPointerCapture(e.pointerId);
+      seekFromEvent(e);
+    });
+    seekEl.addEventListener('pointermove', e => {
+      if (e.buttons) seekFromEvent(e);
+    });
+  })();
+})();
+
+function playTrack() {
+  window.ZobePlayer?.playTrack({
+    id:       {{ track.id }},
+    title:    '{{ track.title|escapejs }}',
+    artist:   '{{ track.user.username|escapejs }}',
+    audioUrl: '{{ track.audio_file.url|escapejs }}',
+    coverUrl: '{% if track.cover %}{{ track.cover.url|escapejs }}{% else %}{% endif %}'
+  });
+
+  const btn = document.getElementById('bigPlayBtn');
+  if (btn) {
+    btn.classList.add('playing');
+    btn.querySelector('i').className = 'bi bi-pause-circle-fill';
+    document.getElementById('playBtnText').textContent = 'Воспроизводится...';
+  }
+
+}
+
+function toggleLike(trackId) {
+  fetch(`/api/track/${trackId}/like/`, {
+    method: 'POST',
+    headers: {
+      'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+      'Content-Type': 'application/json'
+    }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const btn = document.getElementById('likeBtn');
+      const icon = btn.querySelector('i');
+      const count = btn.querySelector('.like-count');
+      const headerCount = document.getElementById('headerLikeCount');
+      if (data.liked) {
+        icon.className = 'bi bi-heart-fill';
+        btn.classList.add('td-liked');
+      } else {
+        icon.className = 'bi bi-heart';
+        btn.classList.remove('td-liked');
+      }
+      if (count) count.textContent = data.likes_count;
+      if (headerCount) headerCount.textContent = data.likes_count;
+      btn.style.transform = 'scale(1.2)';
+      setTimeout(() => btn.style.transform = '', 200);
+    }
+  });
+}
+
+function shareTrack() {
+  const url = window.location.href;
+  if (navigator.share) {
+    navigator.share({ title: '{{ track.title|escapejs }}', url });
+  } else if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(() => showToast('Ссылка скопирована!'));
+  } else {
+    prompt('Скопируйте ссылку:', url);
+  }
+}
+
+function showAddToPlaylistModal() {
+  fetch('/api/user/playlists/')
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) createAddToPlaylistModal(data.playlists);
+      else showToast('Ошибка загрузки плейлистов', 'error');
+    });
+}
+
+function createAddToPlaylistModal(playlists) {
+  const existing = document.getElementById('addToPlaylistModal');
+  if (existing) existing.remove();
+
+  const html = `
+    <div class="modal fade" id="addToPlaylistModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content" style="background:var(--bg-secondary);border:1px solid var(--border-color);">
+          <div class="modal-header" style="border-color:var(--border-color);">
+            <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Добавить в плейлист</h5>
+            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+          </div>
+          <div class="modal-body">
+            ${playlists.length ? `
+              <div style="max-height:380px;overflow-y:auto;display:flex;flex-direction:column;gap:6px;">
+                ${playlists.map(p => `
+                  <div class="d-flex align-items-center gap-3 p-2 rounded" style="background:var(--bg-tertiary);border:1px solid var(--border-color);">
+                    <img src="${p.cover_url || '/static/images/default-playlist.png'}" style="width:44px;height:44px;border-radius:6px;object-fit:cover;">
+                    <div class="flex-grow-1">
+                      <div class="fw-semibold" style="font-size:0.9rem;">${p.title}</div>
+                      <small style="color:var(--text-muted);">${p.tracks_count} треков</small>
+                    </div>
+                    <button class="btn btn-sm add-to-playlist-btn"
+                            data-playlist-id="${p.id}"
+                            style="background:var(--accent-green);color:#000;border:none;border-radius:8px;padding:5px 12px;font-weight:600;">
+                      <i class="bi bi-plus"></i>
+                    </button>
+                  </div>
+                `).join('')}
+              </div>
+            ` : `
+              <div class="text-center py-4" style="color:var(--text-muted);">
+                <i class="bi bi-collection-play" style="font-size:2.5rem;opacity:0.4;"></i>
+                <p class="mt-2">У вас нет плейлистов</p>
+                <a href="/playlists/create/" class="btn btn-sm" style="background:var(--accent-green);color:#000;">Создать плейлист</a>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.insertAdjacentHTML('beforeend', html);
+  const modal = new bootstrap.Modal(document.getElementById('addToPlaylistModal'));
+  modal.show();
+
+  document.querySelectorAll('.add-to-playlist-btn').forEach(btn =>
+    btn.addEventListener('click', () => addTrackToPlaylist(btn.dataset.playlistId))
+  );
+  document.getElementById('addToPlaylistModal').addEventListener('hidden.bs.modal', function () { this.remove(); });
+}
+
+function addTrackToPlaylist(playlistId) {
+  const fd = new FormData();
+  fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+  fetch(`/api/playlist/${playlistId}/add-track/{{ track.id }}/`, { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      showToast(data.success ? (data.message || 'Трек добавлен!') : (data.error || 'Ошибка'), data.success ? 'success' : 'error');
+      if (data.success) bootstrap.Modal.getInstance(document.getElementById('addToPlaylistModal'))?.hide();
+    });
+}
+
+function submitComment() {
+  const content = document.getElementById('commentContent').value.trim();
+  const btn = document.querySelector('#commentForm .td-submit-btn');
+  if (!content) return;
+
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Отправка...';
+
+  const fd = new FormData();
+  fd.append('content', content);
+  fd.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+
+  fetch('/api/track/{{ track.id }}/comment/', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+      if (data.success) {
+        const list = document.getElementById('commentsList');
+        const noMsg = document.getElementById('noCommentsMsg');
+        if (noMsg) noMsg.remove();
+        list.insertBefore(createCommentElement(data.comment), list.firstChild);
+        document.getElementById('commentContent').value = '';
+        document.getElementById('charCount').textContent = '0';
+        const badge = document.getElementById('commentsCountBadge');
+        if (badge) badge.textContent = parseInt(badge.textContent || 0) + 1;
+        showToast('Комментарий добавлен!');
+      } else {
+        showToast(data.error || 'Ошибка', 'error');
+      }
+    })
+    .finally(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-send me-1"></i>Отправить';
+    });
+}
+
+function createCommentElement(comment) {
+  const div = document.createElement('div');
+  div.className = `td-comment${comment.user_is_premium ? ' td-comment-premium' : ''}`;
+  div.dataset.commentId = comment.id;
+  div.innerHTML = `
+    <div class="position-relative flex-shrink-0">
+      <img src="${comment.user_avatar}" class="rounded-circle" width="40" height="40" style="object-fit:cover;">
+      ${comment.user_is_premium ? '<span class="td-comment-premium-dot"><i class="bi bi-star-fill"></i></span>' : ''}
+    </div>
+    <div class="flex-grow-1 min-w-0">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <span class="td-comment-author">
+          <a href="/user/${comment.username}/">${comment.username}</a>
+          ${comment.user_is_premium ? '<i class="bi bi-star-fill" style="color:#ffc107;font-size:0.65rem;"></i>' : ''}
+        </span>
+        <span class="td-comment-date">только что</span>
+      </div>
+      <div class="td-comment-text">${comment.content.replace(/\n/g, '<br>')}</div>
+      <div class="td-comment-actions">
+        <button class="td-comment-action like-comment-btn" data-comment-id="${comment.id}">
+          <i class="bi bi-heart"></i> <span class="comment-likes-count">0</span>
+        </button>
+        <button class="td-comment-action td-comment-delete delete-comment-btn" data-comment-id="${comment.id}">
+          <i class="bi bi-trash"></i> Удалить
+        </button>
+      </div>
+    </div>`;
+
+  div.querySelector('.like-comment-btn').addEventListener('click', () => toggleCommentLike(comment.id));
+  div.querySelector('.delete-comment-btn').addEventListener('click', () => deleteComment(comment.id));
+  return div;
+}
+
+function toggleCommentLike(commentId) {
+  fetch(`/api/comment/${commentId}/like/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value, 'Content-Type': 'application/json' }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const btn = document.querySelector(`.like-comment-btn[data-comment-id="${commentId}"]`);
+      btn.querySelector('i').className = data.liked ? 'bi bi-heart-fill' : 'bi bi-heart';
+      btn.classList.toggle('td-comment-liked', data.liked);
+      btn.querySelector('.comment-likes-count').textContent = data.likes_count;
+      btn.style.transform = 'scale(1.2)';
+      setTimeout(() => btn.style.transform = '', 200);
+    }
+  });
+}
+
+function deleteComment(commentId) {
+  if (!confirm('Удалить комментарий?')) return;
+  fetch(`/api/comment/${commentId}/delete/`, {
+    method: 'POST',
+    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      const el = document.querySelector(`.td-comment[data-comment-id="${commentId}"]`);
+      if (el) el.remove();
+      const badge = document.getElementById('commentsCountBadge');
+      if (badge) badge.textContent = Math.max(0, parseInt(badge.textContent || 0) - 1);
+      const list = document.getElementById('commentsList');
+      if (!list.querySelector('.td-comment')) {
+        list.innerHTML = '<div class="td-empty-comments"><i class="bi bi-chat-dots"></i><p class="mt-2 mb-0">Нет комментариев. Будьте первым!</p></div>';
+      }
+      showToast('Комментарий удалён');
+    }
+  });
+}
+
+</script>
+
+{% endblock %}

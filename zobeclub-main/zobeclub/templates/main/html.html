@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+{% load static %}
+<html lang="ru" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}zobeclub{% endblock %}</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+  {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-dark text-light">
+  <!-- Navigation Header -->
+  <header class="navbar navbar-expand-lg navbar-dark bg-primary sticky-top shadow">
+    <div class="container">
+      <a class="navbar-brand fw-bold fs-3" href="{% url 'home' %}">
+      zobeclub
+      </a>
+      
+      <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+        <span class="navbar-toggler-icon"></span>
+      </button>
+      
+      <div class="collapse navbar-collapse" id="navbarNav">
+        <ul class="navbar-nav me-auto">
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'home' %}">
+              <i class="bi bi-house me-1"></i>Главная
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="{% url 'search' %}">
+              <i class="bi bi-search me-1"></i>Поиск
+            </a>
+          </li>
+          {% if user.is_authenticated %}
+            <li class="nav-item">
+              <a class="nav-link position-relative" href="{% url 'chat_list' %}" id="chatNavLink">
+                <i class="bi bi-chat-dots me-1"></i>Чаты
+                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger" 
+                      id="unreadChatBadge" style="display: none;">
+                  <span id="unreadChatCount">0</span>
+                  <span class="visually-hidden">непрочитанных сообщений</span>
+                </span>
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+        
+        <ul class="navbar-nav">
+          {% if user.is_authenticated %}
+            {% if user.is_staff or user.is_superuser %}
+              <li class="nav-item">
+                <a class="nav-link text-warning" href="/admin/" target="_blank" title="Панель администратора">
+                  <i class="bi bi-gear-fill me-1"></i>Админка
+                </a>
+              </li>
+            {% endif %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'profile' %}">
+                <i class="bi bi-person-circle me-1"></i>{{ user.username }}
+                {% if user.profile.is_premium %}
+                  <i class="bi bi-star-fill text-warning ms-1" title="Премиум пользователь"></i>
+                {% endif %}
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-danger" href="{% url 'logout' %}">
+                <i class="bi bi-box-arrow-right me-1"></i>Выйти
+              </a>
+            </li>
+          {% else %}
+            <li class="nav-item">
+              <a class="nav-link" href="{% url 'login' %}">
+                <i class="bi bi-box-arrow-in-right me-1"></i>Войти
+              </a>
+            </li>
+            <li class="nav-item">
+              <a class="nav-link text-success" href="{% url 'register' %}">
+                <i class="bi bi-person-plus me-1"></i>Регистрация
+              </a>
+            </li>
+          {% endif %}
+        </ul>
+      </div>
+    </div>
+  </header>
+
+  <!-- Messages -->
+  {% if messages %}
+    <div class="container mt-3">
+      {% for message in messages %}
+        <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
+          {% if message.tags == 'error' %}
+            <i class="bi bi-exclamation-triangle me-2"></i>
+          {% elif message.tags == 'success' %}
+            <i class="bi bi-check-circle me-2"></i>
+          {% elif message.tags == 'warning' %}
+            <i class="bi bi-exclamation-circle me-2"></i>
+          {% else %}
+            <i class="bi bi-info-circle me-2"></i>
+          {% endif %}
+          {{ message }}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <!-- Main Content -->
+  <main class="flex-grow-1" style="padding-bottom: 100px;">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- ========== ГЛОБАЛЬНЫЙ МИНИ-ПЛЕЕР ========== -->
+  <div class="mini-player" id="miniPlayer" style="display: none;">
+    <div class="mini-player-content">
+      <!-- Track Info -->
+      <div class="mini-track-info">
+        <div class="mini-cover">
+          <img id="miniCoverImage" src="" alt="Track cover" class="mini-cover-img">
+          <div class="mini-cover-placeholder" id="miniCoverPlaceholder">
+            <i class="bi bi-music-note-beamed"></i>
+          </div>
+        </div>
+        <div class="mini-track-details">
+          <div class="mini-track-title" id="miniTrackTitle">Название трека</div>
+          <div class="mini-track-artist" id="miniTrackArtist">Исполнитель</div>
+        </div>
+      </div>
+
+      <!-- Player Controls -->
+      <div class="mini-player-controls">
+        <button class="mini-control-btn" id="miniPrevBtn" title="Предыдущий трек">
+          <i class="bi bi-skip-backward-fill"></i>
+        </button>
+        <button class="mini-control-btn main-play-btn" id="miniPlayPauseBtn" title="Воспроизвести/Пауза">
+          <i class="bi bi-play-fill" id="miniPlayIcon"></i>
+        </button>
+        <button class="mini-control-btn" id="miniNextBtn" title="Следующий трек">
+          <i class="bi bi-skip-forward-fill"></i>
+        </button>
+      </div>
+
+      <!-- Timeline -->
+      <div class="mini-timeline">
+        <span class="mini-time" id="miniCurrentTime">0:00</span>
+        <div class="mini-progress-container">
+          <div class="mini-progress-bar" id="miniProgressBar">
+            <div class="mini-progress-fill" id="miniProgressFill"></div>
+            <div class="mini-progress-handle" id="miniProgressHandle"></div>
+          </div>
+        </div>
+        <span class="mini-time" id="miniTotalTime">0:00</span>
+      </div>
+
+      <!-- Volume & Additional Controls -->
+      <div class="mini-additional-controls">
+        <div class="mini-volume-control">
+          <i class="bi bi-volume-up" id="miniVolumeIcon"></i>
+          <input type="range" class="mini-volume-slider" id="miniVolumeSlider" min="0" max="100" value="30">
+        </div>
+        <button class="mini-control-btn" id="miniCloseBtn" title="Закрыть плеер">
+          <i class="bi bi-x-lg"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Hidden Audio Element -->
+    <audio id="globalAudioPlayer" preload="metadata"></audio>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-secondary text-center py-4 mt-5">
+    <div class="container">
+      <div class="row">
+        <div class="col-md-6 text-md-start">
+          <h5 class="text-success">zobeclub</h5>
+          <p class="text-muted mb-0">Твоя музыкальная платформа</p>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <p class="text-muted mb-0">2025zobclub</p>
+          <div class="mt-2">
+            <a href="#" class="text-muted"><i class="bi bi-telegram"></i></a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <!-- Global Mini Player JS -->
+  <script src="{% static 'js/track_player.js' %}"></script>
+  
+  {% if user.is_authenticated %}
+  <!-- Chat notification checker -->
+  <script>
+    // Функция для проверки непрочитанных сообщений
+    function checkUnreadMessages() {
+      fetch('/api/chat/unread-count/')
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.unread_count > 0) {
+            const badge = document.getElementById('unreadChatBadge');
+            const count = document.getElementById('unreadChatCount');
+            
+            if (badge && count) {
+              count.textContent = data.unread_count > 99 ? '99+' : data.unread_count;
+              badge.style.display = 'inline-block';
+            }
+          } else {
+            const badge = document.getElementById('unreadChatBadge');
+            if (badge) {
+              badge.style.display = 'none';
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error checking unread messages:', error);
+        });
+    }
+    
+    // Проверяем непрочитанные сообщения при загрузке страницы
+    document.addEventListener('DOMContentLoaded', function() {
+      checkUnreadMessages();
+      
+      // Проверяем каждые 30 секунд
+      setInterval(checkUnreadMessages, 30000);
+    });
+    
+    // Скрываем бейдж при переходе в чаты
+    document.getElementById('chatNavLink')?.addEventListener('click', function() {
+      setTimeout(() => {
+        const badge = document.getElementById('unreadChatBadge');
+        if (badge) {
+          badge.style.display = 'none';
+        }
+      }, 1000);
+    });
+  </script>
+  {% endif %}
+  
+  {% block extra_js %}{% endblock %}
+</body>
+</html>

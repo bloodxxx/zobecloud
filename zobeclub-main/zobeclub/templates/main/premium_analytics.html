@@ -1,0 +1,291 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Аналитика треков — ZobeCloud Premium{% endblock %}
+
+{% block extra_css %}
+<style>
+.an-header {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1.2rem;
+  flex-wrap: wrap;
+}
+.an-header-icon {
+  width: 56px; height: 56px;
+  background: rgba(89,211,68,.12);
+  border: 1px solid rgba(89,211,68,.3);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--accent-green); font-size: 1.6rem;
+  flex-shrink: 0;
+}
+.an-header h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0;
+}
+.an-header p {
+  color: var(--text-muted);
+  font-size: .85rem;
+  margin: .2rem 0 0;
+}
+.prm-badge {
+  display: inline-flex; align-items: center; gap: .4rem;
+  background: rgba(89,211,68,.12);
+  border: 1px solid rgba(89,211,68,.3);
+  color: var(--accent-green);
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+
+/* Stats row */
+.an-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+@media(max-width:700px){ .an-stats { grid-template-columns: repeat(2, 1fr); } }
+.an-stat-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  padding: 1.2rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+.an-stat-icon {
+  font-size: 1.3rem;
+  color: var(--accent-green);
+}
+.an-stat-num {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.an-stat-lbl {
+  font-size: .78rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+/* Track table */
+.an-tracks {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+}
+.an-tracks h2 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: .5rem;
+}
+.an-table { width: 100%; border-collapse: collapse; }
+.an-table th {
+  text-align: left;
+  padding: .6rem .8rem;
+  font-size: .78rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  border-bottom: 1px solid var(--border-color);
+}
+.an-table th.right, .an-table td.right { text-align: right; }
+.an-table td {
+  padding: .75rem .8rem;
+  border-bottom: 1px solid var(--border-color);
+  vertical-align: middle;
+  font-size: .88rem;
+  color: var(--text-secondary);
+}
+.an-table tr:last-child td { border-bottom: none; }
+.an-table tr:hover td { background: var(--bg-tertiary); }
+
+.an-track-cover {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: var(--bg-tertiary);
+  flex-shrink: 0;
+}
+.an-track-cover-ph {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  background: var(--bg-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted); font-size: 1rem;
+  flex-shrink: 0;
+}
+.an-track-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  text-decoration: none;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 200px;
+}
+.an-track-title:hover { color: var(--accent-green); }
+
+/* Progress bar */
+.an-bar-wrap {
+  display: flex; align-items: center; gap: .6rem;
+}
+.an-bar {
+  flex: 1; height: 5px;
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.an-bar-fill {
+  height: 100%;
+  background: var(--accent-green);
+  border-radius: 3px;
+  transition: width .6s ease;
+}
+
+/* Empty state */
+.an-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: var(--text-muted);
+}
+.an-empty i { font-size: 2.5rem; margin-bottom: .8rem; display: block; }
+.an-empty a { color: var(--accent-green); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:960px;">
+
+  <!-- Header -->
+  <div class="an-header">
+    <div class="an-header-icon"><i class="bi bi-bar-chart-line-fill"></i></div>
+    <div style="flex:1">
+      <h1>Аналитика треков <span class="prm-badge"><i class="bi bi-star-fill"></i>Premium</span></h1>
+      <p>Статистика по всем вашим трекам на платформе</p>
+    </div>
+    <a href="{% url 'premium_ord' %}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;">
+      <i class="bi bi-gem me-1"></i>Подписка до {{ premium_status.premium_until|date:"d.m.Y" }}
+    </a>
+  </div>
+
+  <!-- Stats cards -->
+  <div class="an-stats">
+    <div class="an-stat-card">
+      <div class="an-stat-icon"><i class="bi bi-music-note-list"></i></div>
+      <div class="an-stat-num">{{ total_tracks }}</div>
+      <div class="an-stat-lbl">Треков</div>
+    </div>
+    <div class="an-stat-card">
+      <div class="an-stat-icon"><i class="bi bi-headphones"></i></div>
+      <div class="an-stat-num">{{ total_plays }}</div>
+      <div class="an-stat-lbl">Прослушиваний</div>
+    </div>
+    <div class="an-stat-card">
+      <div class="an-stat-icon"><i class="bi bi-heart-fill"></i></div>
+      <div class="an-stat-num">{{ total_likes }}</div>
+      <div class="an-stat-lbl">Лайков</div>
+    </div>
+    <div class="an-stat-card">
+      <div class="an-stat-icon"><i class="bi bi-chat-dots"></i></div>
+      <div class="an-stat-num">{{ total_comments }}</div>
+      <div class="an-stat-lbl">Комментариев</div>
+    </div>
+  </div>
+
+  <!-- Tracks table -->
+  <div class="an-tracks">
+    <h2><i class="bi bi-table" style="color:var(--accent-green);"></i>Все треки</h2>
+
+    {% if tracks %}
+    {% with max_plays=tracks.0.plays_count %}
+    <div style="overflow-x:auto;">
+      <table class="an-table">
+        <thead>
+          <tr>
+            <th style="width:42px;">#</th>
+            <th>Трек</th>
+            <th class="right">Прослушиваний</th>
+            <th class="right">Лайков</th>
+            <th class="right">Комментариев</th>
+            <th class="right">Загружен</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for track in tracks %}
+          <tr>
+            <td style="color:var(--text-muted);font-size:.8rem;">{{ forloop.counter }}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:.7rem;">
+                {% if track.cover %}
+                  <img src="{{ track.cover.url }}" class="an-track-cover" alt="">
+                {% else %}
+                  <div class="an-track-cover-ph"><i class="bi bi-music-note"></i></div>
+                {% endif %}
+                <div style="min-width:0;">
+                  <a href="{% url 'track_detail' track.pk %}" class="an-track-title">{{ track.title }}</a>
+                  <div style="font-size:.75rem;color:var(--text-muted);">
+                    {% if track.visibility == 'public' %}
+                      <i class="bi bi-globe2"></i> Публичный
+                    {% elif track.visibility == 'private' %}
+                      <i class="bi bi-lock"></i> Приватный
+                    {% else %}
+                      <i class="bi bi-link-45deg"></i> По ссылке
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+            </td>
+            <td class="right">
+              <div class="an-bar-wrap" style="justify-content:flex-end;">
+                <span style="font-weight:600;color:var(--text-primary);">{{ track.plays_count }}</span>
+                <div class="an-bar" style="max-width:70px;">
+                  <div class="an-bar-fill" style="width:{% if max_plays > 0 %}{% widthratio track.plays_count max_plays 100 %}{% else %}0{% endif %}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="right" style="color:var(--text-primary);font-weight:600;">{{ track.likes_cnt }}</td>
+            <td class="right" style="color:var(--text-primary);font-weight:600;">{{ track.comments_cnt }}</td>
+            <td class="right" style="color:var(--text-muted);font-size:.8rem;">{{ track.uploaded_at|date:"d.m.Y" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endwith %}
+    {% else %}
+    <div class="an-empty">
+      <i class="bi bi-music-note-beamed"></i>
+      У вас пока нет треков. <a href="{% url 'profile' %}">Загрузить трек</a>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- Back link -->
+  <div style="text-align:center;">
+    <a href="{% url 'premium_status' %}" style="color:var(--text-muted);font-size:.85rem;text-decoration:none;">
+      <i class="bi bi-arrow-left me-1"></i>Управление подпиской
+    </a>
+  </div>
+
+</div>
+{% endblock %}

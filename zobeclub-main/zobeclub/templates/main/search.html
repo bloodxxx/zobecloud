@@ -1,0 +1,623 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Поиск — ZobeCloud{% endblock %}
+
+{% block content %}
+<div class="s-page">
+
+  <!-- ===== HERO ===== -->
+  <div class="s-hero">
+    <h1 class="s-hero-title">Найди свою музыку</h1>
+    <p class="s-hero-sub">Треки, артисты, жанры — всё в одном месте</p>
+
+    <div class="s-search-wrap" id="searchWrap">
+      <div class="s-input-row">
+        <i class="bi bi-search s-search-ico" id="searchIco"></i>
+        <div class="s-spinner" id="searchSpinner" style="display:none">
+          <span class="s-spin-dot"></span>
+        </div>
+        <input type="text"
+               id="searchInput"
+               class="s-input"
+               placeholder="Поиск треков, артистов..."
+               autocomplete="off"
+               value="{{ query }}">
+        <button class="s-clear" id="clearBtn" style="display:none">
+          <i class="bi bi-x-circle-fill"></i>
+        </button>
+      </div>
+
+      <!-- Фильтры -->
+      <div class="s-filters">
+        <button class="s-filter {% if filter_type == 'all' or not filter_type %}active{% endif %}" data-f="all">
+          <i class="bi bi-grid-3x3-gap"></i> Все
+        </button>
+        <button class="s-filter {% if filter_type == 'tracks' %}active{% endif %}" data-f="tracks">
+          <i class="bi bi-music-note"></i> Треки
+        </button>
+        <button class="s-filter {% if filter_type == 'artists' %}active{% endif %}" data-f="artists">
+          <i class="bi bi-people"></i> Артисты
+        </button>
+      </div>
+
+      <!-- Автодополнение -->
+      <div class="s-dropdown" id="searchDropdown" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- ===== ПОПУЛЯРНЫЕ (когда нет запроса) ===== -->
+  <div id="popularSection" {% if query %}style="display:none"{% endif %}>
+    <div class="s-section-head">
+      <i class="bi bi-fire text-accent"></i>
+      <span>Популярные запросы</span>
+    </div>
+    <div class="s-popular-tags" id="popularTags">
+      {% for pq in popular_queries %}
+        <button class="s-pop-tag" onclick="setQuery('{{ pq.query }}')">
+          {{ pq.query }}
+          <span class="s-pop-count">{{ pq.count }}</span>
+        </button>
+      {% empty %}
+        <span class="s-empty-hint">Пока нет данных о популярных запросах</span>
+      {% endfor %}
+    </div>
+
+    <!-- Недавние поиски (localStorage) -->
+    <div id="recentSection" style="display:none" class="mt-4">
+      <div class="s-section-head">
+        <i class="bi bi-clock-history text-muted"></i>
+        <span>Недавние поиски</span>
+        <button class="s-clear-recent" id="clearRecentBtn">Очистить</button>
+      </div>
+      <div class="s-recent-list" id="recentList"></div>
+    </div>
+  </div>
+
+  <!-- ===== РЕЗУЛЬТАТЫ ===== -->
+  <div id="resultsSection" {% if not query %}style="display:none"{% endif %}>
+
+    <!-- Статистика -->
+    <div class="s-stats" id="statsBar" {% if not query %}style="display:none"{% endif %}>
+      <span id="statsText">{% if query %}Результаты для «{{ query }}»{% endif %}</span>
+      <span class="s-stats-counts" id="statsCounts">
+        {% if query %}{{ tracks_count }} тр. · {{ users_count }} арт.{% endif %}
+      </span>
+    </div>
+
+    <!-- Треки -->
+    <div id="tracksSection" {% if not results.tracks %}style="display:none"{% endif %}>
+      <div class="s-section-head">
+        <i class="bi bi-music-note-beamed text-accent"></i>
+        <span id="tracksHeading">Треки ({{ results.tracks|length }})</span>
+      </div>
+      <div class="s-tracks-grid" id="tracksGrid">
+        {% for track in results.tracks %}
+          <div class="s-track-card" data-id="{{ track.id }}">
+            <div class="s-cover-wrap">
+              {% if track.cover %}
+                <img src="{{ track.cover.url }}" alt="{{ track.title }}" class="s-cover" loading="lazy">
+              {% else %}
+                <div class="s-cover-ph"><i class="bi bi-music-note-beamed"></i></div>
+              {% endif %}
+              <button class="s-play-btn"
+                onclick="zbPlay({{ track.id }},'{{ track.title|escapejs }}','{{ track.user.username|escapejs }}','{{ track.audio_file.url }}',{% if track.cover %}'{{ track.cover.url }}'{% else %}null{% endif %})">
+                <i class="bi bi-play-fill"></i>
+              </button>
+            </div>
+            <div class="s-track-info">
+              <a href="{% url 'track_detail' track.id %}" class="s-track-title">{{ track.title }}</a>
+              <a href="{% url 'public_profile' track.user.username %}" class="s-track-artist">{{ track.user.username }}</a>
+              <div class="s-track-meta">
+                <span><i class="bi bi-play"></i> {{ track.plays_count }}</span>
+                <span>{{ track.uploaded_at|date:"d.m.Y" }}</span>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Артисты -->
+    <div id="artistsSection" class="mt-4" {% if not results.users %}style="display:none"{% endif %}>
+      <div class="s-section-head">
+        <i class="bi bi-people text-accent"></i>
+        <span id="artistsHeading">Артисты ({{ results.users|length }})</span>
+      </div>
+      <div class="s-artists-grid" id="artistsGrid">
+        {% for user in results.users %}
+          <a href="{% url 'public_profile' user.username %}" class="s-artist-card">
+            <img src="{{ user.profile.avatar_url }}" alt="{{ user.username }}" class="s-artist-ava">
+            <div class="s-artist-info">
+              <div class="s-artist-name">{{ user.username }}</div>
+              {% if user.first_name or user.last_name %}
+                <div class="s-artist-realname">{{ user.first_name }} {{ user.last_name }}</div>
+              {% endif %}
+              <div class="s-artist-meta">{{ user.track_set.count }} треков</div>
+            </div>
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- Пусто -->
+    <div id="emptySection" style="display:none" class="s-empty">
+      <i class="bi bi-search"></i>
+      <h4>Ничего не найдено</h4>
+      <p>Попробуйте другой запрос или проверьте правописание</p>
+    </div>
+
+  </div>
+</div>
+
+<style>
+/* ===== PAGE ===== */
+.s-page { max-width: 1200px; margin: 0 auto; padding: 2rem 1rem 4rem; }
+
+/* ===== HERO ===== */
+.s-hero { text-align: center; margin-bottom: 2.5rem; }
+.s-hero-title {
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  font-weight: 800;
+  background: linear-gradient(135deg, var(--text-primary) 30%, var(--accent-green));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  margin-bottom: .5rem;
+}
+.s-hero-sub { color: var(--text-secondary); font-size: 1.05rem; margin-bottom: 2rem; }
+
+/* ===== SEARCH BOX ===== */
+.s-search-wrap {
+  max-width: 760px; margin: 0 auto;
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-color);
+  border-radius: 20px;
+  padding: 1.25rem 1.25rem 1rem;
+  transition: border-color .25s;
+  position: relative;
+}
+.s-search-wrap:focus-within { border-color: var(--accent-green); box-shadow: 0 0 0 3px rgba(89,211,68,.15); }
+
+.s-input-row { position: relative; margin-bottom: 1rem; }
+.s-search-ico, .s-spinner {
+  position: absolute; left: 1rem; top: 50%; transform: translateY(-50%);
+  color: var(--text-secondary); font-size: 1.1rem; pointer-events: none;
+}
+.s-spin-dot {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border-color); border-top-color: var(--accent-green);
+  border-radius: 50%; animation: spin .7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.s-input {
+  width: 100%; padding: .9rem 2.8rem .9rem 3rem;
+  background: var(--bg-tertiary); border: 1.5px solid var(--border-color);
+  border-radius: 12px; color: var(--text-primary); font-size: 1.05rem;
+  transition: border-color .2s;
+}
+.s-input:focus { outline: none; border-color: var(--accent-green); }
+.s-input::placeholder { color: var(--text-muted); }
+
+.s-clear {
+  position: absolute; right: .9rem; top: 50%; transform: translateY(-50%);
+  background: none; border: none; color: var(--text-muted); font-size: 1.1rem;
+  cursor: pointer; transition: color .2s;
+}
+.s-clear:hover { color: var(--accent-green); }
+
+/* ===== FILTERS ===== */
+.s-filters { display: flex; gap: .5rem; flex-wrap: wrap; }
+.s-filter {
+  background: var(--bg-tertiary); border: 1.5px solid var(--border-color);
+  border-radius: 25px; padding: .45rem 1.1rem; color: var(--text-secondary);
+  font-size: .9rem; cursor: pointer; transition: all .2s; display: flex; align-items: center; gap: .35rem;
+}
+.s-filter:hover { border-color: var(--accent-green); color: var(--text-primary); }
+.s-filter.active { background: var(--accent-green); border-color: var(--accent-green); color: #000; font-weight: 700; }
+
+/* ===== DROPDOWN ===== */
+.s-dropdown {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0;
+  background: var(--bg-secondary); border: 1px solid var(--border-color);
+  border-radius: 16px; box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  z-index: 500; overflow: hidden; max-height: 380px; overflow-y: auto;
+}
+.s-dd-item {
+  display: flex; align-items: center; gap: .9rem;
+  padding: .75rem 1rem; cursor: pointer; transition: background .15s;
+  border-bottom: 1px solid var(--border-color);
+  text-decoration: none; color: inherit;
+}
+.s-dd-item:last-child { border-bottom: none; }
+.s-dd-item:hover { background: var(--bg-tertiary); }
+.s-dd-ico {
+  width: 38px; height: 38px; border-radius: 8px;
+  background: var(--bg-tertiary); display: flex; align-items: center; justify-content: center;
+  color: var(--accent-green); flex-shrink: 0; font-size: 1rem;
+}
+.s-dd-ico img { width: 38px; height: 38px; border-radius: 8px; object-fit: cover; }
+.s-dd-name { font-weight: 600; color: var(--text-primary); font-size: .95rem; }
+.s-dd-sub { color: var(--text-secondary); font-size: .8rem; }
+.s-dd-badge {
+  margin-left: auto; background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  color: var(--text-muted); font-size: .7rem; font-weight: 600;
+  padding: .2rem .55rem; border-radius: 20px; text-transform: uppercase; flex-shrink: 0;
+}
+.s-dd-badge.track { border-color: var(--accent-green); color: var(--accent-green); }
+.s-dd-badge.artist { border-color: var(--info-color); color: var(--info-color); }
+
+/* ===== SECTION HEADER ===== */
+.s-section-head {
+  display: flex; align-items: center; gap: .6rem;
+  font-weight: 700; color: var(--text-primary); font-size: 1.05rem;
+  margin-bottom: 1.2rem; padding-bottom: .6rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.text-accent { color: var(--accent-green) !important; }
+
+/* ===== POPULAR TAGS ===== */
+.s-popular-tags { display: flex; flex-wrap: wrap; gap: .6rem; }
+.s-pop-tag {
+  background: var(--bg-secondary); border: 1.5px solid var(--border-color);
+  border-radius: 25px; padding: .55rem 1.2rem; color: var(--text-primary);
+  cursor: pointer; transition: all .2s; font-size: .95rem; display: flex; align-items: center; gap: .5rem;
+}
+.s-pop-tag:hover { background: var(--accent-green); border-color: var(--accent-green); color: #000; transform: translateY(-2px); }
+.s-pop-count {
+  background: var(--bg-tertiary); border-radius: 20px;
+  padding: .1rem .5rem; font-size: .75rem; color: var(--text-muted);
+}
+.s-pop-tag:hover .s-pop-count { background: rgba(0,0,0,.2); color: #000; }
+.s-empty-hint { color: var(--text-muted); font-size: .9rem; }
+
+/* ===== RECENT ===== */
+.s-recent-list { display: flex; flex-direction: column; gap: .4rem; }
+.s-recent-item {
+  display: flex; align-items: center; gap: .8rem;
+  padding: .6rem .9rem; background: var(--bg-secondary);
+  border: 1px solid var(--border-color); border-radius: 10px;
+  cursor: pointer; transition: all .2s;
+}
+.s-recent-item:hover { border-color: var(--accent-green); background: var(--bg-tertiary); }
+.s-recent-text { flex: 1; color: var(--text-primary); font-size: .95rem; }
+.s-recent-del {
+  background: none; border: none; color: var(--text-muted);
+  cursor: pointer; padding: .2rem; border-radius: 4px; transition: color .2s;
+}
+.s-recent-del:hover { color: var(--danger-color); }
+.s-clear-recent {
+  margin-left: auto; background: none; border: none;
+  color: var(--text-muted); font-size: .8rem; cursor: pointer; transition: color .2s;
+}
+.s-clear-recent:hover { color: var(--danger-color); }
+
+/* ===== STATS ===== */
+.s-stats {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.5rem; padding-bottom: .75rem;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary); font-weight: 600; font-size: 1.05rem;
+}
+.s-stats-counts { color: var(--text-muted); font-weight: 400; font-size: .9rem; }
+
+/* ===== TRACKS GRID ===== */
+.s-tracks-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  gap: 1.25rem;
+}
+.s-track-card {
+  background: var(--bg-secondary); border: 1.5px solid var(--border-color);
+  border-radius: 14px; overflow: hidden; transition: all .25s;
+  animation: fadeUp .4s ease forwards; opacity: 0;
+}
+.s-track-card:hover { border-color: var(--accent-green); transform: translateY(-4px); box-shadow: 0 6px 24px rgba(89,211,68,.15); }
+
+.s-cover-wrap { position: relative; aspect-ratio: 1; overflow: hidden; background: var(--bg-tertiary); }
+.s-cover { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .3s; }
+.s-track-card:hover .s-cover { transform: scale(1.05); }
+.s-cover-ph { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; color: var(--text-muted); }
+.s-play-btn {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(0,0,0,.55); color: #fff; font-size: 2rem;
+  border: none; cursor: pointer; opacity: 0; transition: opacity .2s;
+}
+.s-track-card:hover .s-play-btn { opacity: 1; }
+
+.s-track-info { padding: .75rem; }
+.s-track-title { display: block; font-weight: 700; color: var(--text-primary); text-decoration: none; font-size: .95rem; margin-bottom: .2rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.s-track-title:hover { color: var(--accent-green); }
+.s-track-artist { display: block; color: var(--text-secondary); text-decoration: none; font-size: .82rem; margin-bottom: .4rem; }
+.s-track-artist:hover { color: var(--accent-green); }
+.s-track-meta { display: flex; justify-content: space-between; font-size: .75rem; color: var(--text-muted); }
+
+/* ===== ARTISTS GRID ===== */
+.s-artists-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+}
+.s-artist-card {
+  display: flex; align-items: center; gap: 1rem;
+  background: var(--bg-secondary); border: 1.5px solid var(--border-color);
+  border-radius: 14px; padding: 1rem; text-decoration: none;
+  transition: all .25s; animation: fadeUp .4s ease forwards; opacity: 0;
+}
+.s-artist-card:hover { border-color: var(--accent-green); transform: translateY(-3px); box-shadow: 0 4px 16px rgba(89,211,68,.12); }
+.s-artist-ava { width: 52px; height: 52px; border-radius: 50%; object-fit: cover; border: 2px solid var(--accent-green); flex-shrink: 0; }
+.s-artist-name { font-weight: 700; color: var(--text-primary); font-size: 1rem; }
+.s-artist-realname { color: var(--text-secondary); font-size: .85rem; }
+.s-artist-meta { color: var(--text-muted); font-size: .8rem; }
+
+/* ===== EMPTY ===== */
+.s-empty { text-align: center; padding: 4rem 2rem; }
+.s-empty i { font-size: 4rem; color: var(--text-muted); margin-bottom: 1rem; display: block; }
+.s-empty h4 { color: var(--text-primary); margin-bottom: .5rem; }
+.s-empty p { color: var(--text-secondary); }
+
+/* ===== ANIMATION ===== */
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+.s-track-card:nth-child(1), .s-artist-card:nth-child(1) { animation-delay:.05s }
+.s-track-card:nth-child(2), .s-artist-card:nth-child(2) { animation-delay:.1s }
+.s-track-card:nth-child(3), .s-artist-card:nth-child(3) { animation-delay:.15s }
+.s-track-card:nth-child(4), .s-artist-card:nth-child(4) { animation-delay:.2s }
+.s-track-card:nth-child(5), .s-artist-card:nth-child(5) { animation-delay:.25s }
+.s-track-card:nth-child(6), .s-artist-card:nth-child(6) { animation-delay:.3s }
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 600px) {
+  .s-tracks-grid { grid-template-columns: repeat(2, 1fr); gap: .8rem; }
+  .s-artists-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+<script>
+const searchInput  = document.getElementById('searchInput');
+const clearBtn     = document.getElementById('clearBtn');
+const searchIco    = document.getElementById('searchIco');
+const searchSpinner= document.getElementById('searchSpinner');
+const dropdown     = document.getElementById('searchDropdown');
+const popularSec   = document.getElementById('popularSection');
+const resultsSec   = document.getElementById('resultsSection');
+const statsBar     = document.getElementById('statsBar');
+const statsText    = document.getElementById('statsText');
+const statsCounts  = document.getElementById('statsCounts');
+const tracksSection= document.getElementById('tracksSection');
+const artistsSection=document.getElementById('artistsSection');
+const tracksGrid   = document.getElementById('tracksGrid');
+const artistsGrid  = document.getElementById('artistsGrid');
+const tracksHeading= document.getElementById('tracksHeading');
+const artistsHeading=document.getElementById('artistsHeading');
+const emptySection = document.getElementById('emptySection');
+const recentSection= document.getElementById('recentSection');
+const recentList   = document.getElementById('recentList');
+
+let debounceTimer;
+let currentFilter = '{{ filter_type|default:"all" }}';
+let recent = JSON.parse(localStorage.getItem('zobe_recent') || '[]');
+
+// ── Фильтры ──
+document.querySelectorAll('.s-filter').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.s-filter').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.f;
+    const q = searchInput.value.trim();
+    if (q.length >= 2) doSearch(q);
+  });
+});
+
+// ── Ввод ──
+searchInput.addEventListener('input', () => {
+  const q = searchInput.value.trim();
+  clearBtn.style.display = q ? 'block' : 'none';
+  clearTimeout(debounceTimer);
+  if (!q) { showPopular(); hideDropdown(); return; }
+  debounceTimer = setTimeout(() => doSearch(q), 350);
+});
+
+searchInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    const q = searchInput.value.trim();
+    if (q) { addRecent(q); recordSearch(q); doSearch(q); }
+    hideDropdown();
+  }
+  if (e.key === 'Escape') hideDropdown();
+});
+
+clearBtn.addEventListener('click', () => {
+  searchInput.value = '';
+  clearBtn.style.display = 'none';
+  hideDropdown();
+  showPopular();
+});
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#searchWrap')) hideDropdown();
+});
+
+// ── Поиск ──
+function doSearch(q) {
+  setSpinner(true);
+  fetch(`/api/live-search/?q=${encodeURIComponent(q)}&filter=${currentFilter}`)
+    .then(r => r.json())
+    .then(data => {
+      setSpinner(false);
+      if (!data.success) { showEmpty(); return; }
+      renderDropdown(data.suggestions || []);
+      renderResults(data, q);
+    })
+    .catch(() => { setSpinner(false); showEmpty(); });
+}
+
+function recordSearch(q) {
+  // Записываем через GET search_view — браузер просто сделает fetch без перехода
+  fetch(`/search/?q=${encodeURIComponent(q)}&_record=1`);
+}
+
+// ── Dropdown ──
+function renderDropdown(items) {
+  if (!items.length) { hideDropdown(); return; }
+  dropdown.innerHTML = items.slice(0, 7).map(item => `
+    <a class="s-dd-item" href="${item.url}">
+      <div class="s-dd-ico">
+        ${item.cover_url ? `<img src="${item.cover_url}" loading="lazy">` : `<i class="bi bi-${item.type === 'track' ? 'music-note' : 'person'}"></i>`}
+      </div>
+      <div>
+        <div class="s-dd-name">${escHtml(item.title)}</div>
+        <div class="s-dd-sub">${escHtml(item.subtitle)}</div>
+      </div>
+      <span class="s-dd-badge ${item.type}">${item.type === 'track' ? 'Трек' : 'Артист'}</span>
+    </a>
+  `).join('');
+  dropdown.style.display = 'block';
+}
+
+function hideDropdown() { dropdown.style.display = 'none'; }
+
+// ── Results area ──
+function renderResults(data, q) {
+  popularSec.style.display = 'none';
+  resultsSec.style.display = 'block';
+  statsBar.style.display   = 'flex';
+  statsText.textContent    = `Результаты для «${q}»`;
+  statsCounts.textContent  = `${data.tracks.length} тр. · ${data.artists.length} арт.`;
+
+  const hasTracks  = data.tracks.length > 0;
+  const hasArtists = data.artists.length > 0;
+
+  tracksSection.style.display  = hasTracks ? 'block' : 'none';
+  artistsSection.style.display = hasArtists ? 'block' : 'none';
+  emptySection.style.display   = (!hasTracks && !hasArtists) ? 'block' : 'none';
+
+  if (hasTracks) {
+    tracksHeading.textContent = `Треки (${data.tracks.length})`;
+    tracksGrid.innerHTML = data.tracks.map((t, i) => `
+      <div class="s-track-card" style="animation-delay:${i * 0.05}s">
+        <div class="s-cover-wrap">
+          ${t.cover_url
+            ? `<img src="${escHtml(t.cover_url)}" class="s-cover" loading="lazy" alt="">`
+            : `<div class="s-cover-ph"><i class="bi bi-music-note-beamed"></i></div>`}
+          <button class="s-play-btn"
+            onclick="zbPlay(${t.id},'${escJs(t.title)}','${escJs(t.artist)}','${escJs(t.audio_url)}',${t.cover_url ? `'${escJs(t.cover_url)}'` : 'null'})">
+            <i class="bi bi-play-fill"></i>
+          </button>
+        </div>
+        <div class="s-track-info">
+          <a href="${t.url}" class="s-track-title">${escHtml(t.title)}</a>
+          <a href="/user/${escHtml(t.artist)}/" class="s-track-artist">${escHtml(t.artist)}</a>
+          <div class="s-track-meta">
+            <span><i class="bi bi-play"></i> ${t.plays_count}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  if (hasArtists) {
+    artistsHeading.textContent = `Артисты (${data.artists.length})`;
+    artistsGrid.innerHTML = data.artists.map((a, i) => `
+      <a href="${a.url}" class="s-artist-card" style="animation-delay:${i * 0.05}s">
+        <img src="${escHtml(a.avatar_url)}" alt="${escHtml(a.username)}" class="s-artist-ava">
+        <div class="s-artist-info">
+          <div class="s-artist-name">${escHtml(a.username)}</div>
+          ${a.full_name ? `<div class="s-artist-realname">${escHtml(a.full_name)}</div>` : ''}
+          <div class="s-artist-meta">${a.track_count} треков</div>
+        </div>
+      </a>
+    `).join('');
+  }
+}
+
+function showEmpty() {
+  popularSec.style.display  = 'none';
+  resultsSec.style.display  = 'block';
+  tracksSection.style.display  = 'none';
+  artistsSection.style.display = 'none';
+  emptySection.style.display   = 'block';
+  statsBar.style.display = 'none';
+}
+
+function showPopular() {
+  popularSec.style.display  = 'block';
+  resultsSec.style.display  = 'none';
+  renderRecent();
+}
+
+// ── Popular tag click ──
+function setQuery(q) {
+  searchInput.value = q;
+  clearBtn.style.display = 'block';
+  addRecent(q);
+  recordSearch(q);
+  doSearch(q);
+}
+
+// ── Recent searches ──
+function addRecent(q) {
+  if (!q.trim()) return;
+  recent = recent.filter(x => x !== q);
+  recent.unshift(q);
+  recent = recent.slice(0, 8);
+  localStorage.setItem('zobe_recent', JSON.stringify(recent));
+}
+
+function renderRecent() {
+  if (!recent.length) { recentSection.style.display = 'none'; return; }
+  recentSection.style.display = 'block';
+  recentList.innerHTML = recent.map((q, i) => `
+    <div class="s-recent-item" onclick="setQuery('${escJs(q)}')">
+      <i class="bi bi-clock-history" style="color:var(--text-muted)"></i>
+      <span class="s-recent-text">${escHtml(q)}</span>
+      <button class="s-recent-del" onclick="delRecent(${i}, event)"><i class="bi bi-x"></i></button>
+    </div>
+  `).join('');
+}
+
+function delRecent(i, e) {
+  e.stopPropagation();
+  recent.splice(i, 1);
+  localStorage.setItem('zobe_recent', JSON.stringify(recent));
+  renderRecent();
+}
+
+document.getElementById('clearRecentBtn').addEventListener('click', () => {
+  recent = [];
+  localStorage.removeItem('zobe_recent');
+  renderRecent();
+});
+
+function setSpinner(on) {
+  searchIco.style.display    = on ? 'none' : 'block';
+  searchSpinner.style.display = on ? 'flex' : 'none';
+}
+
+function zbPlay(id, title, artist, url, cover) {
+  if (window.ZobePlayer) {
+    window.ZobePlayer.playTrack({ id, title, artist, audioUrl: url, coverUrl: cover });
+  }
+}
+
+function escHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function escJs(s) {
+  if (!s) return '';
+  return String(s).replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,'\\n');
+}
+
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (searchInput.value) {
+    clearBtn.style.display = 'block';
+  }
+  renderRecent();
+  if (!searchInput.value) {
+    showPopular();
+  }
+});
+</script>
+{% endblock %}
+

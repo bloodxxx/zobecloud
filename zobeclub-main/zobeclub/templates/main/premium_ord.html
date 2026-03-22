@@ -1,0 +1,512 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}Premium — ZobeCloud{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Premium page ── */
+.prm-hero {
+  position: relative;
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-tertiary) 100%);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 4rem 2rem 3.5rem;
+  text-align: center;
+  overflow: hidden;
+  margin-bottom: 2rem;
+}
+.prm-hero-orb {
+  position: absolute; border-radius: 50%; pointer-events: none;
+}
+.prm-hero-orb1 {
+  width: 340px; height: 340px;
+  background: radial-gradient(circle, rgba(89,211,68,0.15) 0%, transparent 70%);
+  top: -120px; left: -100px;
+}
+.prm-hero-orb2 {
+  width: 280px; height: 280px;
+  background: radial-gradient(circle, rgba(89,211,68,0.10) 0%, transparent 70%);
+  bottom: -80px; right: -80px;
+}
+.prm-crown {
+  font-size: 2.8rem;
+  display: block;
+  margin-bottom: .6rem;
+  filter: drop-shadow(0 0 18px rgba(89,211,68,.5));
+}
+.prm-hero h1 {
+  font-size: 2.6rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: .5rem;
+}
+.prm-hero h1 span { color: var(--accent-green); }
+.prm-hero-sub {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  max-width: 520px;
+  margin: 0 auto 2rem;
+}
+
+/* Current status banner */
+.prm-status-banner {
+  background: rgba(89,211,68,.08);
+  border: 1px solid rgba(89,211,68,.3);
+  border-radius: 14px;
+  padding: 1.1rem 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.prm-status-banner .badge-dot {
+  width: 10px; height: 10px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px rgba(89,211,68,.7);
+  animation: pulse-dot 2s infinite;
+}
+@keyframes pulse-dot {
+  0%,100% { box-shadow: 0 0 4px rgba(89,211,68,.5); }
+  50%      { box-shadow: 0 0 12px rgba(89,211,68,.9); }
+}
+
+/* Plans grid */
+.prm-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.5rem;
+  margin-bottom: 2.5rem;
+}
+@media(max-width:900px){ .prm-plans-grid { grid-template-columns: 1fr; } }
+
+.prm-plan {
+  position: relative;
+  background: var(--bg-secondary);
+  border: 1.5px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  transition: border-color .2s, transform .2s, box-shadow .2s;
+}
+.prm-plan:hover {
+  border-color: var(--accent-green);
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(89,211,68,.15);
+}
+.prm-plan.popular {
+  border-color: var(--accent-green);
+  background: linear-gradient(160deg, var(--bg-secondary) 0%, rgba(89,211,68,.05) 100%);
+  box-shadow: 0 0 0 1px rgba(89,211,68,.25), 0 12px 40px rgba(89,211,68,.12);
+}
+.prm-popular-badge {
+  position: absolute;
+  top: -14px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--accent-green);
+  color: #000;
+  font-size: .72rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  padding: 4px 16px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+.prm-plan-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  margin-bottom: .8rem;
+}
+.prm-plan-price {
+  font-size: 2.8rem;
+  font-weight: 800;
+  color: var(--accent-green);
+  line-height: 1;
+  margin-bottom: .15rem;
+}
+.prm-plan-price sup { font-size: 1.2rem; vertical-align: top; margin-top: .4rem; }
+.prm-plan-old {
+  font-size: .88rem;
+  color: var(--text-muted);
+  text-decoration: line-through;
+  margin-right: .4rem;
+}
+.prm-plan-save {
+  display: inline-block;
+  background: rgba(89,211,68,.15);
+  color: var(--accent-green);
+  border-radius: 6px;
+  font-size: .75rem;
+  font-weight: 700;
+  padding: 2px 8px;
+}
+.prm-plan-dur {
+  color: var(--text-muted);
+  font-size: .85rem;
+  margin-bottom: 1.4rem;
+}
+.prm-plan-features {
+  list-style: none;
+  padding: 0; margin: 0 0 1.8rem;
+  flex: 1;
+}
+.prm-plan-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: .6rem;
+  padding: .45rem 0;
+  font-size: .88rem;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+.prm-plan-features li:last-child { border-bottom: none; }
+.prm-plan-features li i { color: var(--accent-green); flex-shrink: 0; margin-top: 2px; }
+
+.prm-btn {
+  display: block;
+  text-align: center;
+  padding: .8rem 1rem;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: .95rem;
+  text-decoration: none;
+  transition: all .2s;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+}
+.prm-btn-primary {
+  background: var(--accent-green);
+  color: #000;
+}
+.prm-btn-primary:hover {
+  background: #6fe456;
+  color: #000;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(89,211,68,.35);
+}
+.prm-btn-disabled {
+  background: var(--bg-tertiary);
+  color: var(--text-muted);
+  cursor: default;
+}
+
+/* Comparison table */
+.prm-compare {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+  overflow-x: auto;
+}
+.prm-compare h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+}
+.prm-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.prm-table th, .prm-table td {
+  padding: .8rem 1rem;
+  text-align: center;
+  border-bottom: 1px solid var(--border-color);
+  font-size: .9rem;
+  color: var(--text-secondary);
+}
+.prm-table th {
+  font-weight: 700;
+  color: var(--accent-green);
+  background: var(--bg-tertiary);
+}
+.prm-table th:first-child, .prm-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.prm-table tr:last-child td { border-bottom: none; }
+.prm-table tr:hover td { background: var(--bg-tertiary); }
+.ic-yes { color: var(--accent-green); font-size: 1.1rem; }
+.ic-no  { color: var(--text-muted); font-size: 1.1rem; }
+
+/* FAQ */
+.prm-faq {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 2rem;
+  margin-bottom: 2rem;
+}
+.prm-faq h2 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.2rem;
+}
+.prm-faq-item {
+  border-bottom: 1px solid var(--border-color);
+}
+.prm-faq-item:last-child { border-bottom: none; }
+.prm-faq-q {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: .9rem 0;
+  cursor: pointer;
+  color: var(--text-primary);
+  font-weight: 600;
+  font-size: .92rem;
+  user-select: none;
+  gap: 1rem;
+}
+.prm-faq-q i { color: var(--accent-green); flex-shrink: 0; transition: transform .2s; }
+.prm-faq-q.open i { transform: rotate(45deg); }
+.prm-faq-a {
+  display: none;
+  padding: 0 0 .9rem;
+  color: var(--text-secondary);
+  font-size: .88rem;
+  line-height: 1.6;
+}
+.prm-faq-a.open { display: block; }
+
+/* CTA bottom */
+.prm-cta {
+  background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(89,211,68,.06) 100%);
+  border: 1px solid rgba(89,211,68,.25);
+  border-radius: 20px;
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+.prm-cta h2 { font-size: 1.6rem; font-weight: 800; color: var(--text-primary); margin-bottom: .5rem; }
+.prm-cta p  { color: var(--text-secondary); margin-bottom: 1.5rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width:960px;">
+
+  <!-- Hero -->
+  <div class="prm-hero">
+    <div class="prm-hero-orb prm-hero-orb1"></div>
+    <div class="prm-hero-orb prm-hero-orb2"></div>
+    <span class="prm-crown">&#11088;</span>
+    <h1>ZobeCloud <span>Premium</span></h1>
+    <p class="prm-hero-sub">Снимите ограничения. Загружайте сколько угодно треков и следите за их статистикой.</p>
+    {% if not user.is_authenticated %}
+      <a href="{% url 'register' %}" class="prm-btn prm-btn-primary" style="display:inline-block;width:auto;padding:.8rem 2.4rem;">Зарегистрироваться</a>
+    {% endif %}
+  </div>
+
+  <!-- Active subscription banner -->
+  {% if user.is_authenticated and is_premium %}
+  <div class="prm-status-banner mb-4">
+    <div class="badge-dot"></div>
+    <div style="flex:1">
+      <span style="color:var(--accent-green);font-weight:700;">Premium активен</span>
+      <span style="color:var(--text-secondary);margin-left:.6rem;">— действует до {{ user_premium_status.premium_until|date:"d.m.Y" }}, осталось {{ user_premium_status.days_left }} дней</span>
+    </div>
+    <a href="{% url 'premium_analytics' %}" class="prm-btn prm-btn-primary" style="width:auto;padding:.55rem 1.2rem;font-size:.85rem;">
+      <i class="bi bi-bar-chart-line me-1"></i>Аналитика
+    </a>
+    <a href="{% url 'premium_status' %}" class="prm-btn" style="width:auto;padding:.55rem 1.2rem;font-size:.85rem;border:1px solid var(--border-color);color:var(--text-secondary);margin-left:.4rem;">
+      Управление
+    </a>
+  </div>
+  {% endif %}
+
+  <!-- Plans -->
+  <div class="prm-plans-grid">
+    {% for plan in plans %}
+    <div class="prm-plan {% if plan.popular %}popular{% endif %}">
+      {% if plan.popular %}<div class="prm-popular-badge">ПОПУЛЯРНЫЙ</div>{% endif %}
+
+      <div class="prm-plan-name">{{ plan.name }}</div>
+
+      <div class="prm-plan-price"><sup>₽</sup>{{ plan.price }}</div>
+      <div style="margin-bottom:.4rem;">
+        {% if plan.original_price %}
+          <span class="prm-plan-old">₽{{ plan.original_price }}</span>
+          <span class="prm-plan-save">-{{ plan.savings }}₽</span>
+        {% endif %}
+      </div>
+      <div class="prm-plan-dur">{{ plan.duration_text }}</div>
+
+      <ul class="prm-plan-features">
+        {% for f in plan.features %}
+        <li><i class="bi bi-check-circle-fill"></i>{{ f }}</li>
+        {% endfor %}
+      </ul>
+
+      {% if user.is_authenticated %}
+        {% if is_premium %}
+          <button class="prm-btn prm-btn-disabled" disabled>Уже активен</button>
+        {% else %}
+          <a href="{% url 'premium_checkout' plan.id %}" class="prm-btn prm-btn-primary">Выбрать</a>
+        {% endif %}
+      {% else %}
+        <a href="{% url 'login' %}?next={% url 'premium_checkout' plan.id %}" class="prm-btn prm-btn-primary">Войти и выбрать</a>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Comparison table -->
+  <div class="prm-compare">
+    <h2><i class="bi bi-table me-2" style="color:var(--accent-green);"></i>Сравнение возможностей</h2>
+    <table class="prm-table">
+      <thead>
+        <tr>
+          <th>Функция</th>
+          <th>Бесплатно</th>
+          <th>Premium</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Загрузка треков</td>
+          <td>5 в неделю</td>
+          <td><i class="bi bi-infinity ic-yes"></i> Безлимитно</td>
+        </tr>
+        <tr>
+          <td>Аналитика треков</td>
+          <td><i class="bi bi-x-lg ic-no"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i> Прослушивания, лайки, комменты</td>
+        </tr>
+        <tr>
+          <td>Значок Premium в профиле</td>
+          <td><i class="bi bi-x-lg ic-no"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+        </tr>
+        <tr>
+          <td>Персональный баннер профиля</td>
+          <td><i class="bi bi-x-lg ic-no"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+        </tr>
+        <tr>
+          <td>Плейлисты</td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+        </tr>
+        <tr>
+          <td>Чаты</td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+        </tr>
+        <tr>
+          <td>Приоритетная поддержка</td>
+          <td><i class="bi bi-x-lg ic-no"></i></td>
+          <td><i class="bi bi-check-lg ic-yes"></i></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- FAQ -->
+  <div class="prm-faq">
+    <h2><i class="bi bi-question-circle me-2" style="color:var(--accent-green);"></i>Часто задаваемые вопросы</h2>
+
+    <div class="prm-faq-item">
+      <div class="prm-faq-q" onclick="toggleFaq(this)">
+        Что будет с моими треками если я отменю подписку?
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <div class="prm-faq-a">Все ваши треки останутся на платформе. Однако лимит загрузок вернётся к 5 в неделю — вы не сможете загружать новые до следующей недели если уже исчерпали квоту.</div>
+    </div>
+
+    <div class="prm-faq-item">
+      <div class="prm-faq-q" onclick="toggleFaq(this)">
+        Как работает лимит 5 треков в неделю?
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <div class="prm-faq-a">Считаются треки, загруженные за последние 7 дней. Как только пройдёт неделя с момента первой загрузки — слот освобождается и можно загружать снова.</div>
+    </div>
+
+    <div class="prm-faq-item">
+      <div class="prm-faq-q" onclick="toggleFaq(this)">
+        Что показывает аналитика треков?
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <div class="prm-faq-a">Для каждого вашего трека: количество прослушиваний, лайков и комментариев. Общая сводка по всему каталогу — динамика за 30 дней.</div>
+    </div>
+
+    <div class="prm-faq-item">
+      <div class="prm-faq-q" onclick="toggleFaq(this)">
+        Можно ли отменить подписку в любое время?
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <div class="prm-faq-a">Да, через раздел «Управление подпиской». После отмены Premium продолжает работать до конца оплаченного периода.</div>
+    </div>
+
+    <div class="prm-faq-item">
+      <div class="prm-faq-q" onclick="toggleFaq(this)">
+        Какие способы оплаты доступны?
+        <i class="bi bi-plus-lg"></i>
+      </div>
+      <div class="prm-faq-a">Банковские карты (Visa, MasterCard, МИР), ЮMoney, QIWI. Все платежи проходят через защищённые каналы.</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  {% if not is_premium %}
+  <div class="prm-cta">
+    <h2>Готов начать?</h2>
+    <p>Присоединяйся к Premium и загружай музыку без ограничений</p>
+    {% if user.is_authenticated %}
+      <a href="{% url 'premium_checkout' 'quarterly' %}" class="prm-btn prm-btn-primary" style="display:inline-block;width:auto;padding:.85rem 2.8rem;">
+        <i class="bi bi-star-fill me-2"></i>Попробовать Premium
+      </a>
+    {% else %}
+      <a href="{% url 'register' %}" class="prm-btn prm-btn-primary" style="display:inline-block;width:auto;padding:.85rem 2.8rem;">
+        <i class="bi bi-person-plus me-2"></i>Зарегистрироваться
+      </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleFaq(el) {
+  const ans = el.nextElementSibling;
+  const isOpen = ans.classList.contains('open');
+  // close all
+  document.querySelectorAll('.prm-faq-a').forEach(a => a.classList.remove('open'));
+  document.querySelectorAll('.prm-faq-q').forEach(q => q.classList.remove('open'));
+  if (!isOpen) { ans.classList.add('open'); el.classList.add('open'); }
+}
+
+// animate plans on scroll
+const observer = new IntersectionObserver(entries => {
+  entries.forEach((e, i) => {
+    if (e.isIntersecting) {
+      setTimeout(() => {
+        e.target.style.opacity = '1';
+        e.target.style.transform = e.target.classList.contains('popular')
+          ? 'translateY(0) scale(1.01)'
+          : 'translateY(0)';
+      }, i * 80);
+      observer.unobserve(e.target);
+    }
+  });
+}, { threshold: 0.1 });
+
+document.querySelectorAll('.prm-plan').forEach(card => {
+  card.style.opacity = '0';
+  card.style.transform = 'translateY(24px)';
+  card.style.transition = 'opacity .5s ease, transform .5s ease';
+  observer.observe(card);
+});
+</script>
+{% endblock %}

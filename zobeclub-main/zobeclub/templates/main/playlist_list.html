@@ -1,0 +1,268 @@
+{% extends 'main/base.html' %}
+{% load static %}
+
+{% block title %}{{ page_title }} - ZobeCloud{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Заголовок и кнопка создания -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="text-white mb-0">
+                    <i class="fas fa-list-music me-2"></i>
+                    {{ page_title }}
+                </h2>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                    <i class="fas fa-plus me-2"></i>Создать плейлист
+                </button>
+            </div>
+
+            <!-- Список плейлистов -->
+            {% if playlists %}
+                <div class="row">
+                    {% for playlist in playlists %}
+                    <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+                        <div class="card bg-dark border-secondary h-100">
+                            <!-- Обложка плейлиста -->
+                            <div class="position-relative">
+                                <img src="{{ playlist.cover_url }}" 
+                                     class="card-img-top" 
+                                     alt="{{ playlist.title }}"
+                                     style="height: 200px; object-fit: cover;">
+                                
+                                <!-- Кнопка воспроизведения -->
+                                <div class="position-absolute top-50 start-50 translate-middle">
+                                    <button class="btn btn-success btn-lg rounded-circle opacity-75" 
+                                            onclick="playPlaylist({{ playlist.id }})"
+                                            style="width: 60px; height: 60px;">
+                                        <i class="fas fa-play"></i>
+                                    </button>
+                                </div>
+                                
+                                <!-- Индикатор приватности -->
+                                {% if playlist.visibility == 'private' %}
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <span class="badge bg-warning">
+                                        <i class="fas fa-lock"></i> Приватный
+                                    </span>
+                                </div>
+                                {% elif playlist.visibility == 'unlisted' %}
+                                <div class="position-absolute top-0 end-0 m-2">
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-link"></i> По ссылке
+                                    </span>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="card-body">
+                                <h5 class="card-title text-white">
+                                    <a href="{% url 'playlist_detail' playlist.pk %}" 
+                                       class="text-decoration-none text-white">
+                                        {{ playlist.title }}
+                                    </a>
+                                </h5>
+                                
+                                {% if playlist.description %}
+                                <p class="card-text text-muted small">
+                                    {{ playlist.description|truncatechars:100 }}
+                                </p>
+                                {% endif %}
+                                
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <small class="text-muted">
+                                        <i class="fas fa-music me-1"></i>
+                                        {{ playlist.tracks_count }} трек{{ playlist.tracks_count|pluralize:"ов" }}
+                                    </small>
+                                    <small class="text-muted">
+                                        {{ playlist.updated_at|date:"d.m.Y" }}
+                                    </small>
+                                </div>
+                            </div>
+                            
+                            <!-- Меню действий -->
+                            <div class="card-footer bg-transparent border-top-0">
+                                <div class="btn-group w-100" role="group">
+                                    <a href="{% url 'playlist_detail' playlist.pk %}" 
+                                       class="btn btn-outline-light btn-sm">
+                                        <i class="fas fa-eye me-1"></i>Открыть
+                                    </a>
+                                    <button type="button" 
+                                            class="btn btn-outline-secondary btn-sm"
+                                            onclick="editPlaylist({{ playlist.id }}, '{{ playlist.title }}', '{{ playlist.description }}', '{{ playlist.visibility }}')">
+                                        <i class="fas fa-edit me-1"></i>Изменить
+                                    </button>
+                                    <button type="button" 
+                                            class="btn btn-outline-danger btn-sm"
+                                            onclick="deletePlaylist({{ playlist.id }}, '{{ playlist.title }}')">
+                                        <i class="fas fa-trash me-1"></i>Удалить
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <!-- Пустое состояние -->
+                <div class="text-center py-5">
+                    <i class="fas fa-list-music fa-5x text-muted mb-3"></i>
+                    <h3 class="text-muted">У вас пока нет плейлистов</h3>
+                    <p class="text-muted">Создайте свой первый плейлист, чтобы организовать любимые треки</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createPlaylistModal">
+                        <i class="fas fa-plus me-2"></i>Создать первый плейлист
+                    </button>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно создания плейлиста -->
+<div class="modal fade" id="createPlaylistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Создать новый плейлист</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'create_playlist' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="playlistTitle" class="form-label text-white">Название плейлиста *</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" 
+                               id="playlistTitle" name="title" required maxlength="200"
+                               placeholder="Введите название плейлиста">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="playlistDescription" class="form-label text-white">Описание</label>
+                        <textarea class="form-control bg-secondary text-white border-0" 
+                                  id="playlistDescription" name="description" rows="3"
+                                  placeholder="Опишите ваш плейлист (необязательно)"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="playlistVisibility" class="form-label text-white">Видимость</label>
+                        <select class="form-select bg-secondary text-white border-0" 
+                                id="playlistVisibility" name="visibility">
+                            <option value="public">Публичный - виден всем</option>
+                            <option value="unlisted">По ссылке - виде�� только по прямой ссылке</option>
+                            <option value="private">Приватный - виден только вам</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="playlistCover" class="form-label text-white">Обложка плейлиста</label>
+                        <input type="file" class="form-control bg-secondary text-white border-0" 
+                               id="playlistCover" name="cover" accept="image/*">
+                        <div class="form-text text-muted">
+                            Поддерживаются форматы: JPG, PNG, GIF. Максимальный размер: 5MB
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>Создать плейлист
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования плейлиста -->
+<div class="modal fade" id="editPlaylistModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content bg-dark">
+            <div class="modal-header border-secondary">
+                <h5 class="modal-title text-white">Редактировать плейлист</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editPlaylistForm" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="editPlaylistTitle" class="form-label text-white">Название плейлиста *</label>
+                        <input type="text" class="form-control bg-secondary text-white border-0" 
+                               id="editPlaylistTitle" name="title" required maxlength="200">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPlaylistDescription" class="form-label text-white">Описание</label>
+                        <textarea class="form-control bg-secondary text-white border-0" 
+                                  id="editPlaylistDescription" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPlaylistVisibility" class="form-label text-white">Видимость</label>
+                        <select class="form-select bg-secondary text-white border-0" 
+                                id="editPlaylistVisibility" name="visibility">
+                            <option value="public">Публичный - виден всем</option>
+                            <option value="unlisted">По ссылке - виден только по прямой ссылке</option>
+                            <option value="private">Приватный - виден только вам</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editPlaylistCover" class="form-label text-white">Обложка плейлиста</label>
+                        <input type="file" class="form-control bg-secondary text-white border-0" 
+                               id="editPlaylistCover" name="cover" accept="image/*">
+                        <div class="form-text text-muted">
+                            Оставьте пустым, чтобы сохранить текущую обложку
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-secondary">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>Сохранить изменения
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+// Функция для редактирования плейлиста
+function editPlaylist(playlistId, title, description, visibility) {
+    document.getElementById('editPlaylistTitle').value = title;
+    document.getElementById('editPlaylistDescription').value = description;
+    document.getElementById('editPlaylistVisibility').value = visibility;
+    
+    const form = document.getElementById('editPlaylistForm');
+    form.action = `/playlist/${playlistId}/edit/`;
+    
+    new bootstrap.Modal(document.getElementById('editPlaylistModal')).show();
+}
+
+// Функция для удаления плейлиста
+function deletePlaylist(playlistId, title) {
+    if (confirm(`Вы уверены, что хотите удалить плейлист "${title}"? Это действие нельзя отменить.`)) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/playlist/${playlistId}/delete/`;
+        
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        
+        form.appendChild(csrfInput);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+
+// Функция для воспроизведения плейлиста
+function playPlaylist(playlistId) {
+    // Здесь будет логика воспроизведения плейлиста
+    window.location.href = `/playlist/${playlistId}/`;
+}
+</script>
+{% endblock %}

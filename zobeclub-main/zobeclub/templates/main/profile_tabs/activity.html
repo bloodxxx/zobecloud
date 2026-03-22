@@ -1,0 +1,47 @@
+{% if activities %}
+  <div class="activity-feed">
+    {% for act in activities %}
+      <div class="activity-item">
+        <div class="activity-icon">
+          {% if act.activity_type == 'track_upload' %}
+            <i class="bi bi-upload text-success"></i>
+          {% elif act.activity_type == 'track_like' %}
+            <i class="bi bi-heart-fill text-danger"></i>
+          {% elif act.activity_type == 'user_follow' %}
+            <i class="bi bi-person-plus text-info"></i>
+          {% elif act.activity_type == 'playlist_create' %}
+            <i class="bi bi-collection-play text-warning"></i>
+          {% elif act.activity_type == 'comment_add' %}
+            <i class="bi bi-chat text-primary"></i>
+          {% else %}
+            <i class="bi bi-dot text-muted"></i>
+          {% endif %}
+        </div>
+        <div class="activity-content">
+          <div class="activity-text">
+            {% if act.activity_type == 'track_upload' %}
+              Загрузил трек{% if act.track %} <a href="/track/{{ act.track.id }}/" class="activity-link">{{ act.track.title }}</a>{% endif %}
+            {% elif act.activity_type == 'track_like' %}
+              Оценил трек{% if act.track %} <a href="/track/{{ act.track.id }}/" class="activity-link">{{ act.track.title }}</a>{% endif %}
+            {% elif act.activity_type == 'user_follow' %}
+              Подписался на{% if act.target_user %} <a href="/user/{{ act.target_user.username }}/" class="activity-link">{{ act.target_user.username }}</a>{% endif %}
+            {% elif act.activity_type == 'playlist_create' %}
+              Создал плейлист
+            {% elif act.activity_type == 'comment_add' %}
+              Прокомментировал трек{% if act.track %} <a href="/track/{{ act.track.id }}/" class="activity-link">{{ act.track.title }}</a>{% endif %}
+            {% else %}
+              {{ act.activity_type }}
+            {% endif %}
+          </div>
+          <div class="activity-time">{{ act.created_at|date:"d.m.Y H:i" }}</div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="empty-state py-5 text-center">
+    <i class="bi bi-activity" style="font-size: 3rem; color: var(--text-muted);"></i>
+    <h5 class="mt-3">Нет активности</h5>
+    <p class="text-muted">Загружайте треки, ставьте лайки и подписывайтесь на других</p>
+  </div>
+{% endif %}

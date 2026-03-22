@@ -1,0 +1,523 @@
+{% extends "main/base.html" %}
+{% load static %}
+
+{% block title %}{{ album.title }} — ZobeCloud{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width:1100px; padding-top:2rem; padding-bottom:6rem;">
+
+  {# ── Album Header ── #}
+  <div class="album-header">
+    <div class="album-cover-wrap">
+      {% if album.cover %}
+        <img src="{{ album.cover_url }}" alt="{{ album.title }}" class="album-cover-img">
+      {% else %}
+        <div class="album-cover-placeholder"><i class="bi bi-collection"></i></div>
+      {% endif %}
+    </div>
+    <div class="album-meta">
+      <div class="album-type-label">Альбом</div>
+      <h1 class="album-title">{{ album.title }}</h1>
+      <div class="album-info-row">
+        <a href="{% url 'public_profile' album.user.username %}" class="album-artist">
+          <img src="{{ album.user.profile.avatar_url }}" alt="{{ album.user.username }}" class="album-artist-avatar">
+          {{ album.user.username }}
+        </a>
+        <span class="album-info-sep">·</span>
+        <span>{{ album.created_at|date:"Y" }}</span>
+        <span class="album-info-sep">·</span>
+        <span>{{ album.tracks_count }} трек{{ album.tracks_count|pluralize:",,ов" }}</span>
+        <span class="album-info-sep">·</span>
+        <span>{{ album.plays_total }} прослушиваний</span>
+      </div>
+      {% if album.description %}
+        <p class="album-description">{{ album.description }}</p>
+      {% endif %}
+      {% if not album.is_released and is_owner %}
+        <div class="album-scheduled-badge">
+          <i class="bi bi-clock me-1"></i> Выйдет {{ album.release_at|date:"d.m.Y H:i" }}
+        </div>
+      {% endif %}
+      <div class="album-actions">
+        {% if album.tracks.all %}
+          <button class="pf-btn pf-btn-green" onclick="playAlbum()">
+            <i class="bi bi-play-fill"></i> Слушать
+          </button>
+        {% endif %}
+        {% if is_owner %}
+          <button class="pf-btn pf-btn-outline" data-bs-toggle="modal" data-bs-target="#editAlbumModal">
+            <i class="bi bi-pencil"></i> Редактировать
+          </button>
+          <button class="pf-btn pf-btn-ghost" onclick="confirmDeleteAlbum()">
+            <i class="bi bi-trash"></i>
+          </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {# ── Track List ── #}
+  <div class="album-tracklist">
+    {% if tracks %}
+      {% for track in tracks %}
+        <div class="album-track-row" data-track-id="{{ track.id }}" data-audio-url="{{ track.audio_url|escapejs }}">
+          <div class="album-track-num">{{ forloop.counter }}</div>
+          <div class="album-track-cover">
+            {% if track.cover %}
+              <img src="{{ track.cover_url }}" alt="{{ track.title }}">
+            {% else %}
+              <div class="album-track-cover-ph"><i class="bi bi-music-note"></i></div>
+            {% endif %}
+            <button class="album-track-play" onclick="playTrackFromCard({{ track.id }}, '{{ track.title|escapejs }}', '{{ track.user.username|escapejs }}', '{{ track.audio_url|escapejs }}', '{{ track.cover_url|escapejs }}')">
+              <i class="bi bi-play-fill"></i>
+            </button>
+          </div>
+          <div class="album-track-info">
+            <a href="{% url 'track_detail' track.id %}" class="album-track-title">{{ track.title }}</a>
+            <div class="album-track-plays"><i class="bi bi-play"></i> {{ track.plays_count }}</div>
+          </div>
+          <div class="album-track-duration"></div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="pf-empty">
+        <i class="bi bi-music-note-beamed"></i>
+        <div>В альбоме пока нет треков</div>
+        {% if is_owner %}
+          <button class="pf-btn pf-btn-green" data-bs-toggle="modal" data-bs-target="#addTrackModal">
+            <i class="bi bi-plus-circle"></i> Добавить треки
+          </button>
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Edit Album Modal ── #}
+{% if is_owner %}
+<div class="modal fade" id="editAlbumModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title"><i class="bi bi-pencil text-success"></i> Редактировать альбом</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        {# Tabs: info / tracks #}
+        <ul class="nav nav-pills mb-3" id="editAlbumTabs">
+          <li class="nav-item">
+            <button class="nav-link active" onclick="showEditTab('info',this)" type="button">
+              <i class="bi bi-info-circle me-1"></i>Информация
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" onclick="showEditTab('tracks',this)" type="button">
+              <i class="bi bi-music-note-list me-1"></i>Треки
+            </button>
+          </li>
+        </ul>
+
+        {# Info tab #}
+        <div id="editAlbumInfo">
+          <form method="post" enctype="multipart/form-data" action="{% url 'edit_album' album.id %}" id="editAlbumForm">
+            {% csrf_token %}
+            <div class="mb-3">
+              <label class="form-label">Название</label>
+              <input type="text" class="form-control" name="title" value="{{ album.title }}" required maxlength="200">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">Описание</label>
+              <textarea class="form-control" name="description" rows="3">{{ album.description }}</textarea>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Видимость</label>
+                <select class="form-select" name="visibility">
+                  <option value="public" {% if album.visibility == 'public' %}selected{% endif %}>Публичный</option>
+                  <option value="unlisted" {% if album.visibility == 'unlisted' %}selected{% endif %}>По ссылке</option>
+                  <option value="private" {% if album.visibility == 'private' %}selected{% endif %}>Приватный</option>
+                </select>
+              </div>
+              <div class="col-md-6 mb-3">
+                <label class="form-label">Новая обложка</label>
+                <input type="file" class="form-control" name="cover" accept="image/*">
+                <div class="form-text">Оставьте пустым, чтобы не менять</div>
+              </div>
+            </div>
+            <div class="mb-3">
+              <div class="form-check form-switch" style="padding-left:2.4em;">
+                <input class="form-check-input" type="checkbox" id="editAlbumScheduleCheck"
+                       {% if not album.is_released %}checked{% endif %}
+                       onchange="toggleEditAlbumSchedule(this)">
+                <label class="form-check-label" for="editAlbumScheduleCheck" style="color:var(--text-secondary);">
+                  <i class="bi bi-clock me-1" style="color:var(--accent-green);"></i>Отложенный релиз
+                </label>
+              </div>
+              <div id="editAlbumReleaseWrap" style="{% if album.is_released %}display:none;{% endif %}margin-top:.6rem;">
+                <input type="datetime-local" class="form-control" name="release_at"
+                       value="{% if album.release_at %}{{ album.release_at|date:'Y-m-d' }}T{{ album.release_at|date:'H:i' }}{% endif %}">
+              </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+              <button type="submit" class="btn btn-success"><i class="bi bi-check-circle me-1"></i>Сохранить</button>
+            </div>
+          </form>
+        </div>
+
+        {# Tracks tab #}
+        <div id="editAlbumTracks" style="display:none;">
+          <div class="mb-3">
+            <h6 style="color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:.8rem;">Текущие треки в альбоме</h6>
+            {% if tracks %}
+              <div id="sortableTrackList">
+                {% for track in tracks %}
+                  <div class="edit-track-row" data-id="{{ track.id }}">
+                    <span class="drag-handle"><i class="bi bi-grip-vertical"></i></span>
+                    <span class="edit-track-num">{{ forloop.counter }}</span>
+                    <img src="{{ track.cover_url }}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;">
+                    <span class="edit-track-name">{{ track.title }}</span>
+                    <form method="post" action="{% url 'remove_track_from_album' album.id track.id %}" style="margin-left:auto;">
+                      {% csrf_token %}
+                      <button type="submit" class="album-track-remove" title="Убрать из альбома">
+                        <i class="bi bi-x-circle"></i>
+                      </button>
+                    </form>
+                  </div>
+                {% endfor %}
+              </div>
+              <div class="d-flex align-items-center justify-content-between mt-2">
+                <div class="form-text"><i class="bi bi-info-circle me-1"></i>Перетащите для изменения порядка</div>
+                <button type="button" class="btn btn-success btn-sm" id="saveOrderBtn" onclick="saveTrackOrder()" style="display:none;">
+                  <i class="bi bi-check-circle me-1"></i>Сохранить порядок
+                </button>
+              </div>
+            {% else %}
+              <div class="text-muted text-center py-3">Нет треков в альбоме</div>
+            {% endif %}
+          </div>
+
+          <h6 style="color:var(--text-muted);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;margin:.8rem 0;">Добавить трек</h6>
+          <div class="add-tracks-list">
+            {% for track in user_tracks %}
+              {% if not track.album or track.album.id == album.id %}
+                {% if not track.album %}
+                <form method="post" action="{% url 'add_track_to_album' album.id track.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="list-group-item list-group-item-action d-flex align-items-center gap-2">
+                    <img src="{{ track.cover_url }}" alt="" style="width:36px;height:36px;border-radius:6px;object-fit:cover;flex-shrink:0;">
+                    <span>{{ track.title }}</span>
+                    <span class="ms-auto text-muted" style="font-size:.75rem;"><i class="bi bi-plus"></i> Добавить</span>
+                  </button>
+                </form>
+                {% endif %}
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{# Delete Album Modal #}
+<div class="modal fade" id="deleteAlbumModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header border-danger">
+        <h5 class="modal-title text-danger"><i class="bi bi-exclamation-triangle me-2"></i>Удалить альбом</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p>Удалить альбом <strong>{{ album.title }}</strong>?</p>
+        <div class="alert alert-warning"><i class="bi bi-exclamation-triangle me-2"></i>Треки останутся, только связь с альбомом будет удалена.</div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+        <form method="post" action="{% url 'delete_album' album.id %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-danger"><i class="bi bi-trash me-1"></i>Удалить</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<style>
+.album-header {
+  display: flex; gap: 2rem; align-items: flex-end;
+  margin-bottom: 2.5rem; padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border-color);
+}
+.album-cover-wrap { flex-shrink: 0; }
+.album-cover-img {
+  width: 200px; height: 200px; border-radius: 12px;
+  object-fit: cover; box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+.album-cover-placeholder {
+  width: 200px; height: 200px; border-radius: 12px;
+  background: var(--bg-tertiary); border: 1px solid var(--border-color);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 4rem; color: var(--text-muted);
+}
+.album-type-label {
+  font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: .3rem;
+}
+.album-title {
+  font-size: 2.2rem; font-weight: 800; color: var(--text-primary);
+  margin: 0 0 .7rem; line-height: 1.15;
+}
+.album-info-row {
+  display: flex; align-items: center; flex-wrap: wrap; gap: .4rem;
+  font-size: .85rem; color: var(--text-muted); margin-bottom: .7rem;
+}
+.album-artist {
+  display: flex; align-items: center; gap: .4rem;
+  color: var(--text-primary); text-decoration: none; font-weight: 600;
+}
+.album-artist:hover { color: var(--accent-green); }
+.album-artist-avatar {
+  width: 22px; height: 22px; border-radius: 50%; object-fit: cover;
+}
+.album-info-sep { color: var(--border-color); }
+.album-description {
+  font-size: .88rem; color: var(--text-secondary);
+  margin-bottom: .8rem; max-width: 500px;
+}
+.album-scheduled-badge {
+  display: inline-flex; align-items: center;
+  background: rgba(89,211,68,.1); border: 1px solid rgba(89,211,68,.3);
+  border-radius: 20px; padding: 4px 12px;
+  font-size: .78rem; color: var(--accent-green);
+  margin-bottom: .8rem;
+}
+.album-actions { display: flex; gap: .6rem; flex-wrap: wrap; margin-top: .5rem; }
+
+/* Track list */
+.album-tracklist { display: flex; flex-direction: column; gap: 0; }
+.album-track-row {
+  display: grid;
+  grid-template-columns: 28px 44px 1fr auto;
+  align-items: center; gap: .8rem;
+  padding: .5rem .4rem; border-radius: 8px;
+  transition: background .15s;
+}
+.album-track-row:hover { background: var(--bg-secondary); }
+.album-track-num {
+  font-size: .82rem; color: var(--text-muted);
+  text-align: center; min-width: 28px;
+}
+.album-track-cover {
+  position: relative; width: 44px; height: 44px;
+  border-radius: 6px; overflow: hidden; flex-shrink: 0;
+}
+.album-track-cover img, .album-track-cover-ph {
+  width: 100%; height: 100%; object-fit: cover;
+}
+.album-track-cover-ph {
+  background: var(--bg-tertiary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem; color: var(--text-muted);
+}
+.album-track-play {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,.55); border: none;
+  color: #fff; font-size: 1rem;
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity .15s; cursor: pointer; border-radius: 6px;
+}
+.album-track-row:hover .album-track-play { opacity: 1; }
+.album-track-info { display: flex; flex-direction: column; gap: .1rem; min-width: 0; }
+.album-track-title {
+  font-size: .9rem; font-weight: 600; color: var(--text-primary);
+  text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.album-track-title:hover { color: var(--accent-green); }
+.album-track-plays { font-size: .75rem; color: var(--text-muted); }
+.album-track-remove {
+  background: none; border: none; color: var(--text-muted);
+  font-size: 1rem; cursor: pointer; padding: 4px;
+  transition: color .15s; border-radius: 4px;
+}
+.album-track-remove:hover { color: #e74c3c; }
+
+/* Edit modal */
+.nav-pills .nav-link {
+  background: none; border: 1px solid var(--border-color);
+  color: var(--text-muted); border-radius: 8px; font-size: .83rem; padding: .3rem .8rem;
+  transition: all .15s; margin-right: .4rem;
+}
+.nav-pills .nav-link.active { background: var(--accent-green); border-color: var(--accent-green); color: #000; }
+.edit-track-row {
+  display: flex; align-items: center; gap: .6rem;
+  padding: .5rem .4rem; border-radius: 8px; background: var(--bg-tertiary);
+  margin-bottom: .4rem; cursor: grab;
+}
+.edit-track-row:active { cursor: grabbing; }
+.drag-handle { color: var(--text-muted); font-size: 1.1rem; cursor: grab; flex-shrink: 0; }
+.edit-track-num { min-width: 20px; text-align: center; font-size: .8rem; color: var(--text-muted); }
+.edit-track-name { font-size: .88rem; color: var(--text-primary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.add-tracks-list { max-height: 240px; overflow-y: auto; border-radius: 8px; border: 1px solid var(--border-color); }
+.add-tracks-list .list-group-item { border-color: var(--border-color); font-size: .85rem; }
+
+/* Modals inherit from main styles */
+.modal-content {
+  background: var(--bg-secondary) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-primary);
+}
+.modal-header, .modal-footer { border-color: var(--border-color) !important; }
+.list-group-item {
+  background: var(--bg-tertiary); border-color: var(--border-color);
+  color: var(--text-primary);
+}
+.list-group-item:hover { background: var(--bg-secondary); color: var(--accent-green); }
+
+/* pf-btn reuse */
+.pf-btn {
+  display:inline-flex; align-items:center; gap:.4rem;
+  padding:.5rem 1rem; border-radius:10px; font-size:.85rem;
+  font-weight:600; border:none; cursor:pointer; transition:all .2s; text-decoration:none;
+}
+.pf-btn-green { background:var(--accent-green); color:#000; }
+.pf-btn-green:hover { background:#4cd431; color:#000; }
+.pf-btn-outline { background:transparent; color:var(--text-primary); border:1.5px solid var(--border-color); }
+.pf-btn-outline:hover { border-color:var(--accent-green); color:var(--accent-green); }
+.pf-btn-ghost { background:transparent; color:var(--text-muted); }
+.pf-btn-ghost:hover { color:#e74c3c; }
+
+.pf-empty {
+  text-align:center; padding:3rem 1rem;
+  color:var(--text-muted); display:flex; flex-direction:column;
+  align-items:center; gap:1rem;
+}
+.pf-empty i { font-size:2.5rem; }
+
+@media(max-width:600px) {
+  .album-header { flex-direction: column; align-items: center; text-align: center; }
+  .album-cover-img, .album-cover-placeholder { width: 150px; height: 150px; }
+  .album-title { font-size: 1.5rem; }
+  .album-info-row { justify-content: center; }
+}
+</style>
+
+<script>
+// Плейлист из всех треков альбома
+const _albumPlaylist = [{% for track in tracks %}{ id:{{ track.id }}, title:'{{ track.title|escapejs }}', artist:'{{ track.user.username|escapejs }}', audioUrl:'{{ track.audio_url|escapejs }}', coverUrl:'{{ track.cover_url|escapejs }}' }{% if not forloop.last %},{% endif %}{% endfor %}];
+
+function playTrackFromCard(id, title, artist, audioUrl, coverUrl) {
+  if (!window.ZobePlayer) return;
+  if (_albumPlaylist.length > 1) {
+    const idx = _albumPlaylist.findIndex(t => t.id === id);
+    window.ZobePlayer.setPlaylist(_albumPlaylist, Math.max(0, idx));
+  } else {
+    window.ZobePlayer.playTrack({id, title, artist, audioUrl, coverUrl});
+  }
+}
+
+function showEditTab(tab, btn) {
+  document.getElementById('editAlbumInfo').style.display = tab === 'info' ? '' : 'none';
+  document.getElementById('editAlbumTracks').style.display = tab === 'tracks' ? '' : 'none';
+  document.querySelectorAll('#editAlbumTabs .nav-link').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function toggleEditAlbumSchedule(cb) {
+  document.getElementById('editAlbumReleaseWrap').style.display = cb.checked ? 'block' : 'none';
+}
+
+// Drag-and-drop reorder
+(function() {
+  // Инициализируем draggable
+  document.querySelectorAll('.edit-track-row').forEach(r => r.setAttribute('draggable', 'true'));
+
+  let dragged = null;
+  const list = document.getElementById('sortableTrackList');
+  if (!list) return;
+
+  list.addEventListener('dragstart', e => {
+    const row = e.target.closest('.edit-track-row');
+    if (row) { dragged = row; setTimeout(() => row.style.opacity = '.4', 0); }
+  });
+  list.addEventListener('dragend', e => {
+    const row = e.target.closest('.edit-track-row');
+    if (row) row.style.opacity = '';
+    dragged = null;
+  });
+  list.addEventListener('dragover', e => {
+    const row = e.target.closest('.edit-track-row');
+    if (row && dragged && row !== dragged) {
+      e.preventDefault();
+      const rows = [...list.children];
+      const di = rows.indexOf(dragged), ri = rows.indexOf(row);
+      list.insertBefore(dragged, di < ri ? row.nextSibling : row);
+      list.querySelectorAll('.edit-track-num').forEach((n, i) => n.textContent = i + 1);
+      // Показываем кнопку сохранения
+      const btn = document.getElementById('saveOrderBtn');
+      if (btn) btn.style.display = '';
+    }
+  });
+})();
+
+// Сохранить порядок треков на сервере
+function saveTrackOrder() {
+  const list = document.getElementById('sortableTrackList');
+  if (!list) return;
+  const ids = [...list.querySelectorAll('.edit-track-row')].map(r => parseInt(r.dataset.id));
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+  const btn = document.getElementById('saveOrderBtn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Сохранение...'; }
+
+  fetch('/api/album/{{ album.id }}/reorder/', {
+    method: 'POST',
+    headers: { 'X-CSRFToken': csrf, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order: ids })
+  })
+  .then(r => r.json())
+  .then(data => {
+    if (data.success) {
+      if (btn) { btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранено!'; btn.classList.replace('btn-success','btn-outline-success'); }
+      setTimeout(() => { if (btn) { btn.style.display = 'none'; btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить порядок'; btn.classList.replace('btn-outline-success','btn-success'); } }, 1500);
+    } else {
+      if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить порядок'; }
+      showToast('Ошибка сохранения', 'error');
+    }
+  })
+  .catch(() => {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Сохранить порядок'; }
+    showToast('Ошибка сети', 'error');
+  });
+}
+
+// Загрузить длительность треков
+(function loadDurations() {
+  document.querySelectorAll('.album-track-row[data-audio-url]').forEach(row => {
+    const url = row.getAttribute('data-audio-url');
+    const durEl = row.querySelector('.album-track-duration');
+    if (!url || !durEl) return;
+    const a = new Audio();
+    a.preload = 'metadata';
+    a.addEventListener('loadedmetadata', function() {
+      const s = Math.floor(a.duration || 0);
+      if (s > 0) durEl.textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+      a.src = '';
+    });
+    a.src = url;
+  });
+})();
+
+function playAlbum() {
+  const rows = document.querySelectorAll('.album-track-row');
+  if (!rows.length) return;
+  const first = rows[0];
+  const id = first.dataset.trackId;
+  const btn = first.querySelector('.album-track-play');
+  if (btn) btn.click();
+}
+function confirmDeleteAlbum() {
+  new bootstrap.Modal(document.getElementById('deleteAlbumModal')).show();
+}
+</script>
+{% endblock %}
