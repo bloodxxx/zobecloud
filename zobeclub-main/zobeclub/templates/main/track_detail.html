@@ -728,7 +728,39 @@
   const commentContent = document.getElementById('commentContent');
   const charCount = document.getElementById('charCount');
 
-  if (bigPlayBtn) bigPlayBtn.addEventListener('click', playTrack);
+  // Если этот трек уже играет — показываем «пауза» и переключаем вместо рестарта
+  function handleBigPlayBtn() {
+    const cur = window.ZobePlayer?.getCurrentTrack();
+    const isThisTrack = cur && cur.id === {{ track.id }};
+    if (isThisTrack) {
+      window.ZobePlayer.togglePlay();
+    } else {
+      playTrack();
+    }
+  }
+  if (bigPlayBtn) bigPlayBtn.addEventListener('click', handleBigPlayBtn);
+
+  // Синхронизируем кнопку с состоянием плеера при загрузке страницы
+  function syncBigPlayBtn() {
+    if (!bigPlayBtn) return;
+    const cur = window.ZobePlayer?.getCurrentTrack();
+    const playing = cur && cur.id === {{ track.id }} && window.ZobePlayer?.getIsPlaying();
+    const i = bigPlayBtn.querySelector('i');
+    const txt = document.getElementById('playBtnText');
+    if (playing) {
+      bigPlayBtn.classList.add('playing');
+      if (i) i.className = 'bi bi-pause-circle-fill';
+      if (txt) txt.textContent = 'Воспроизводится...';
+    } else {
+      bigPlayBtn.classList.remove('playing');
+      if (i) i.className = 'bi bi-play-circle-fill';
+      if (txt) txt.textContent = 'Слушать';
+    }
+  }
+  // Обновляем кнопку сразу и при каждой смене трека/паузы
+  document.addEventListener('zp:trackchange', syncBigPlayBtn);
+  document.addEventListener('zp:playstate',   syncBigPlayBtn);
+  setTimeout(syncBigPlayBtn, 0); // после инициализации ZobePlayer
   if (likeBtn) likeBtn.addEventListener('click', () => toggleLike({{ track.id }}));
   if (shareBtn) shareBtn.addEventListener('click', shareTrack);
   if (addToPlaylistBtn) addToPlaylistBtn.addEventListener('click', showAddToPlaylistModal);
@@ -855,24 +887,33 @@
       if (wfDur) wfDur.textContent = isThis ? fmt(audio.duration) : '—';
     }
 
-    const audio = document.getElementById('zpAudio');
-    if (audio) {
-      audio.addEventListener('timeupdate',     updateProgress);
-      audio.addEventListener('loadedmetadata', updateProgress);
-      audio.addEventListener('durationchange', updateProgress);
-      // 'seeked' срабатывает когда ZobePlayer восстанавливает позицию после перезагрузки
-      audio.addEventListener('seeked',         updateProgress);
+    // Ожидающая перемотка — применяется как только длительность станет известна
+    var _pendingSeekPct = null;
+
+    function applyPendingSeek() {
+      if (_pendingSeekPct === null) return;
+      const au = document.getElementById('zpAudio');
+      if (!au || !au.duration || !isFinite(au.duration)) return;
+      au.currentTime = _pendingSeekPct * au.duration;
+      _pendingSeekPct = null;
       updateProgress();
     }
 
-    // После перезагрузки ZobePlayer инициализируется в DOMContentLoaded,
-    // а этот скрипт выполняется раньше — ждём готовности плеера
-    (function pollPlayer() {
-      if (window.ZobePlayer) {
-        updateProgress();
-      } else {
-        var t = setTimeout(function() { clearTimeout(t); pollPlayer(); }, 80);
-      }
+    const audio = document.getElementById('zpAudio');
+    if (audio) {
+      audio.addEventListener('loadedmetadata', function() { updateProgress(); applyPendingSeek(); });
+      audio.addEventListener('durationchange', function() { updateProgress(); applyPendingSeek(); });
+      audio.addEventListener('canplay',        applyPendingSeek);
+      // 'seeked' срабатывает когда ZobePlayer восстанавливает позицию после перезагрузки
+      audio.addEventListener('seeked',         updateProgress);
+    }
+
+    // rAF-цикл: обновляем волну каждый кадр пока элемент в DOM
+    // Это надёжнее чем timeupdate — работает даже когда трек уже играл до перехода на страницу
+    (function rafLoop() {
+      if (!document.contains(fgEl)) return; // страница изменилась — остановить цикл
+      updateProgress();
+      requestAnimationFrame(rafLoop);
     })();
 
     // Глобальная синхронизация: при смене трека в плеере — обновляем волну
@@ -880,21 +921,30 @@
       updateProgress();
     });
 
-    // ── Перемотка — Pointer Capture (не накапливает document-listeners) ─
+    // - Перемотка - Pointer Capture (не накапливает document-listeners) -
     function seekFromEvent(e) {
       const au = document.getElementById('zpAudio');
-      if (!au || !au.duration) return;
-      // Разрешаем перемотку только если играет этот трек
-      if (!window.ZobePlayer?.getCurrentTrack() || window.ZobePlayer.getCurrentTrack().id !== THIS_ID) {
-        // Включаем трек и ждём — тогда перемотаем
-        playTrack();
-        return;
-      }
+      if (!au) return;
       const r   = seekEl.getBoundingClientRect();
       if (!r.width) return;
       const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-      au.currentTime = pct * au.duration;
-      updateProgress();
+
+      const currentTrack       = window.ZobePlayer?.getCurrentTrack();
+      const isThisTrackPlaying = currentTrack &&
+                                  currentTrack.id === THIS_ID &&
+                                  window.ZobePlayer?.getIsPlaying();
+
+      // включаем трек если: другой трек / ничего не играет / этот трек на паузе
+      if (!isThisTrackPlaying) playTrack();
+
+      // если длительность уже известна - перематываем сразу
+      if (au.duration && isFinite(au.duration)) {
+        au.currentTime = pct * au.duration;
+        updateProgress();
+      } else {
+        // аудио ещё грузится - сохраняем позицию, применим в applyPendingSeek
+        _pendingSeekPct = pct;
+      }
     }
 
     seekEl.addEventListener('pointerdown', e => {

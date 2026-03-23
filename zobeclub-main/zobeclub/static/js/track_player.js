@@ -263,8 +263,8 @@ class ZobePlayerClass {
       this.isPlaying = false;
       this._syncUI();
     });
-    this.audio.addEventListener('play',  () => { this.isPlaying = true;  this._syncUI(); this._save(); });
-    this.audio.addEventListener('pause', () => { this.isPlaying = false; this._syncUI(); this._save(); });
+    this.audio.addEventListener('play',  () => { this.isPlaying = true;  this._syncUI(); this._save(); document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: true } })); });
+    this.audio.addEventListener('pause', () => { this.isPlaying = false; this._syncUI(); this._save(); document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: false } })); });
 
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden && this.track) this._syncUI();
