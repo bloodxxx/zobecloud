@@ -4,7 +4,7 @@ from django.contrib.auth.forms import UserCreationForm, AuthenticationForm
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.models import User
 from django.contrib import messages
-from django.http import Http404, JsonResponse
+from django.http import Http404, JsonResponse, FileResponse, HttpResponseNotFound
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
 from django.db.models import Q, Count, Sum, Max
@@ -221,6 +221,12 @@ def register(request):
         return redirect('profile')
 
     if request.method == 'POST':
+        # Проверяем обязательное согласие с лицензионным договором
+        if not request.POST.get('license_accepted'):
+            messages.error(request, 'Необходимо принять лицензионное соглашение для регистрации.')
+            form = UserCreationForm(request.POST)
+            return render(request, 'main/register.html', {'form': form})
+
         form = UserCreationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
@@ -228,6 +234,11 @@ def register(request):
             if email:
                 user.email = email
             user.save()
+            # Сохраняем дату и время принятия лицензионного соглашения
+            from django.utils import timezone as tz
+            profile = user.profile
+            profile.terms_accepted_at = tz.now()
+            profile.save(update_fields=['terms_accepted_at'])
             login(request, user)
             messages.success(request, f"Добро пожаловать в ZobeCloud, {user.username}! Регистрация прошла успешно!")
             return redirect('profile')
@@ -577,6 +588,20 @@ def edit_track(request, pk):
             return redirect('profile')
 
     return redirect('profile')
+
+# скачивание лицензионного соглашения
+def download_license(request):
+    from django.conf import settings
+    pdf_path = os.path.join(settings.MEDIA_ROOT, 'docs', 'ЛИЦЕНЗИОННЫЙ ДОГОВОР ZobeCloud.pdf')
+    if not os.path.exists(pdf_path):
+        return HttpResponseNotFound('Файл не найден')
+    response = FileResponse(
+        open(pdf_path, 'rb'),
+        content_type='application/pdf',
+        as_attachment=True,
+        filename='Лицензионный договор ZobeCloud.pdf'
+    )
+    return response
 
 # ajax проверка доступности имени пользователя
 def check_username_availability(request):

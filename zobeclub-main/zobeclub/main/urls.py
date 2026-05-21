@@ -39,6 +39,7 @@ urlpatterns = [
     path('premium/cancel/', views.cancel_premium, name='cancel_premium'),
     path('premium/analytics/', views.premium_analytics, name='premium_analytics'),
     
+    path('docs/license/', views.download_license, name='download_license'),
     # API endpoints
     path('api/check-username/', views.check_username_availability, name='check_username_availability'),
     path('api/upload-avatar/', views.upload_avatar, name='upload_avatar'),

@@ -1594,8 +1594,8 @@ function shareTrack(id) {
   const url=`${location.origin}/track/${id}/`;
   navigator.share?navigator.share({url}):navigator.clipboard.writeText(url).then(()=>showNotification('Ссылка скопирована','success'));
 }
-function sendMessage() { showNotification('Раздел чатов в разработке','info'); }
-function toggleFollow() { showNotification('Подписки в разработке','info'); }
+function sendMessage() { /* showNotification('Раздел чатов в разработке','info'); */ }
+function toggleFollow() { /* showNotification('Подписки в разработке','info'); */ }
 function shareProfile() {
   const url = window.location.href;
   if (navigator.share) {

@@ -335,7 +335,7 @@ function removeAttachment(button, type) {
 }
 
 function toggleChatInfo() {
-    alert('Информация о чате (функция в разработке)');
+    // alert('Информация о чате (функция в разработке)');
 }
 
 // Сигнализируем о загрузке скрипта

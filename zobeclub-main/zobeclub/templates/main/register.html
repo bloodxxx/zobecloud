@@ -238,23 +238,46 @@
               </div>
             </div>
             
-            <div class="form-check mb-3">
-              <input class="form-check-input" 
-                     type="checkbox" 
-                     id="agreeTerms" 
-                     name="agree_terms" 
-                     required>
-              <label class="form-check-label" for="agreeTerms">
-                Я согласен с <a href="#" target="_blank">Условиями использования</a> 
-                и <a href="#" target="_blank">Политикой конфиденциальности</a> <span class="text-danger">*</span>
-              </label>
-              <div class="invalid-feedback">Необходимо согласиться с условиями</div>
+            <!-- Лицензионное соглашение -->
+            <div class="license-block mb-3">
+              <div id="licenseReadBlock">
+                <p class="license-desc mb-2">
+                  <i class="bi bi-file-earmark-pdf-fill text-danger me-1"></i>
+                  Перед регистрацией ознакомьтесь с лицензионным договором ZobeCloud.
+                  <span class="text-danger">*</span>
+                </p>
+                <button type="button" class="btn btn-outline-primary" id="btnReadLicense" onclick="downloadLicense()">
+                  <i class="bi bi-eye me-1"></i>Прочитать соглашение
+                </button>
+              </div>
+
+              <div id="licenseAcceptBlock" style="display:none;">
+                <div class="form-check">
+                  <input class="form-check-input"
+                         type="checkbox"
+                         id="licenseAccepted"
+                         name="license_accepted"
+                         value="1"
+                         required>
+                  <label class="form-check-label" for="licenseAccepted">
+                    <i class="bi bi-check2-circle text-success me-1"></i>
+                    Я прочитал(а) и <strong>принимаю</strong> лицензионное соглашение ZobeCloud
+                    <span class="text-danger">*</span>
+                  </label>
+                  <div class="invalid-feedback">Необходимо принять лицензионное соглашение</div>
+                </div>
+                <small class="text-muted">
+                  <a href="{% url 'download_license' %}" target="_blank">
+                    <i class="bi bi-download me-1"></i>Скачать снова
+                  </a>
+                </small>
+              </div>
             </div>
-            
+
             <div class="form-check mb-4">
-              <input class="form-check-input" 
-                     type="checkbox" 
-                     id="newsletter" 
+              <input class="form-check-input"
+                     type="checkbox"
+                     id="newsletter"
                      name="newsletter">
               <label class="form-check-label" for="newsletter">
                 Получать новости и обновления ZobeCloud
@@ -291,11 +314,6 @@
           <span>или</span>
         </div>
         
-        <div class="social-buttons">
-          <button class="btn btn-outline-primary social-btn" disabled>
-            <i class="bi bi-google me-2"></i>Войти через Google
-          </button>
-        </div>
         
         <p class="text-center mt-3">
           Уже есть аккаунт? 
@@ -593,6 +611,24 @@
   color: #000;
 }
 
+/* Лицензионное соглашение */
+.license-block {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.license-desc {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
+#licenseAcceptBlock .form-check-label {
+  color: var(--text-primary);
+  font-size: 0.95rem;
+}
+
 /* Альтернативная авторизация */
 .alternative-auth {
   text-align: center;
@@ -839,6 +875,31 @@ function validateCurrentStep() {
     }
   }
 
+  if (currentStep === 3) {
+    // Проверяем, что пользователь принял лицензионное соглашение
+    const licenseAcceptBlock = document.getElementById('licenseAcceptBlock');
+    const licenseCheckbox = document.getElementById('licenseAccepted');
+
+    if (!licenseAcceptBlock || licenseAcceptBlock.style.display === 'none') {
+      // Кнопка «Прочитать» ещё не нажата
+      const readBtn = document.getElementById('btnReadLicense');
+      if (readBtn) {
+        readBtn.classList.add('btn-danger');
+        readBtn.classList.remove('btn-outline-primary');
+        setTimeout(() => {
+          readBtn.classList.remove('btn-danger');
+          readBtn.classList.add('btn-outline-primary');
+        }, 1500);
+      }
+      ok = false;
+    } else if (!licenseCheckbox || !licenseCheckbox.checked) {
+      licenseCheckbox.classList.add('is-invalid');
+      ok = false;
+    } else {
+      licenseCheckbox.classList.remove('is-invalid');
+    }
+  }
+
   return ok;
 }
 
@@ -932,6 +993,26 @@ if (form) {
     }
   });
 }
+
+// ── Лицензионное соглашение ──────────────────────────────────────────────────
+
+window.downloadLicense = function() {
+  // Скачиваем PDF
+  const link = document.createElement('a');
+  link.href = "{% url 'download_license' %}";
+  link.download = 'Лицензионный договор ZobeCloud.pdf';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+
+  // После небольшой задержки показываем чекбокс «Принимаю»
+  setTimeout(() => {
+    document.getElementById('licenseReadBlock').style.display = 'none';
+    const acceptBlock = document.getElementById('licenseAcceptBlock');
+    acceptBlock.style.display = 'block';
+    acceptBlock.style.animation = 'fadeInSlide 0.4s ease';
+  }, 800);
+};
 
 updateBioCounter();
 
