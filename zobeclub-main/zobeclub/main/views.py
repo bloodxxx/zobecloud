@@ -21,7 +21,7 @@ from .models import (
     PremiumSubscription, TrackLike, Notification,
     Playlist, PlaylistTrack, TrackComment,
     Chat, Message, ChatMembership, SearchQuery,
-    Album, TrackPlay,
+    Album, TrackPlay, Block,
 )
 
 # список публичных плейлистов
@@ -1807,6 +1807,24 @@ def start_chat(request, username):
     new_chat.participants.add(request.user, other_user)
 
     return redirect('chat_detail', chat_id=new_chat.id)
+
+
+@login_required
+@require_http_methods(["POST"])
+def block_user(request, username):
+    target = get_object_or_404(User, username=username)
+    if target != request.user:
+        Block.objects.get_or_create(blocker=request.user, blocked=target)
+    return redirect('public_profile', username=username)
+
+
+@login_required
+@require_http_methods(["POST"])
+def unblock_user(request, username):
+    target = get_object_or_404(User, username=username)
+    Block.objects.filter(blocker=request.user, blocked=target).delete()
+    return redirect('public_profile', username=username)
+
 
 # отправка сообщения
 @login_required

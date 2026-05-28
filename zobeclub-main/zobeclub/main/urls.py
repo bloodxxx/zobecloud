@@ -6,6 +6,8 @@ urlpatterns = [
     path('', views.home, name='home'),
     path('profile/', views.profile, name='profile'),
     path('user/<str:username>/', views.public_profile, name='public_profile'),
+    path('user/<str:username>/block/', views.block_user, name='block_user'),
+    path('user/<str:username>/unblock/', views.unblock_user, name='unblock_user'),
     path('search/', views.search_view, name='search'),
     
     # Аутентификация
