@@ -831,6 +831,10 @@ def public_profile(request, username):
                 following=profile_user
             ).exists()
 
+        is_blocked = False
+        if request.user.is_authenticated and not is_own_profile:
+            is_blocked = Block.objects.filter(blocker=request.user, blocked=profile_user).exists()
+
         context = {
             'profile_user': profile_user,
             'is_own_profile': is_own_profile,
@@ -842,6 +846,7 @@ def public_profile(request, username):
             'liked_count': liked_tracks.count(),
             'total_plays': total_plays,
             'is_following': is_following,
+            'is_blocked': is_blocked,
         }
 
         return render(request, 'main/profile.html', context)
