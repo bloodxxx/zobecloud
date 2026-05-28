@@ -139,7 +139,7 @@
           <button class="pf-btn pf-btn-outline" onclick="shareProfile()">
             <i class="bi bi-share"></i> Поделиться
           </button>
-          {% if user.is_authenticated %}
+          {% if user.is_authenticated and not is_blocked_by %}
             <form method="post" action="{% if is_blocked %}{% url 'unblock_user' profile_user.username %}{% else %}{% url 'block_user' profile_user.username %}{% endif %}" style="display:inline;">
               {% csrf_token %}
               <button type="submit" class="pf-btn {% if is_blocked %}pf-btn-outline{% else %}pf-btn-ghost{% endif %}">
