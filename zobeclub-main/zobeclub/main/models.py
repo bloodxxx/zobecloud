@@ -762,3 +762,17 @@ class SearchQuery(models.Model):
         obj, created = cls.objects.get_or_create(query=query)
         if not created:
             cls.objects.filter(pk=obj.pk).update(count=models.F('count') + 1)
+
+
+class Block(models.Model):
+    blocker = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocking')
+    blocked = models.ForeignKey(User, on_delete=models.CASCADE, related_name='blocked_by')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('blocker', 'blocked')
+        verbose_name = "Блокировка"
+        verbose_name_plural = "Блокировки"
+
+    def __str__(self):
+        return f"{self.blocker.username} заблокировал {self.blocked.username}"
