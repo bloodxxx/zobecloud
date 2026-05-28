@@ -1793,6 +1793,13 @@ def start_chat(request, username):
         messages.error(request, "Нельзя создать чат с самим собой")
         return redirect('chat_list')
 
+    if Block.objects.filter(
+        Q(blocker=request.user, blocked=other_user) |
+        Q(blocker=other_user, blocked=request.user)
+    ).exists():
+        messages.error(request, "Невозможно начать чат: пользователь заблокирован")
+        return redirect('public_profile', username=username)
+
     existing_chat = Chat.objects.filter(
         chat_type='private',
         participants=request.user
