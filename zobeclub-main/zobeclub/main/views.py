@@ -592,7 +592,7 @@ def edit_track(request, pk):
 # скачивание лицензионного соглашения
 def download_license(request):
     from django.conf import settings
-    pdf_path = os.path.join(settings.MEDIA_ROOT, 'docs', 'ЛИЦЕНЗИОННЫЙ ДОГОВОР ZobeCloud.pdf')
+    pdf_path = os.path.join(settings.MEDIA_ROOT, 'docs', 'ЛИЦЕНЗИОННЫЙ ДОГОВОР.pdf')
     if not os.path.exists(pdf_path):
         return HttpResponseNotFound('Файл не найден')
     response = FileResponse(
