@@ -132,8 +132,13 @@
         </div>
       </div>
 
+      <!-- Blocked banner -->
+      <div class="chat-blocked-banner d-none" id="chatBlockedBanner">
+        <i class="bi bi-slash-circle me-2"></i>Вы не можете писать — переписка заблокирована
+      </div>
+
       <!-- Input area -->
-      <div class="chat-input-area">
+      <div class="chat-input-area" id="chatInputArea">
         <textarea class="chat-textarea" id="messageInput"
                   placeholder="Написать сообщение..." rows="1"
                   onkeydown="handleInputKeydown(event)"
@@ -484,6 +489,17 @@
 .chat-send-btn:hover { background: var(--accent-green-hover); transform: scale(1.05); }
 .chat-send-btn:disabled { opacity: 0.5; pointer-events: none; }
 
+/* Blocked banner */
+.chat-blocked-banner {
+  padding: 14px 18px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: .9rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 /* Context menu */
 .msg-context-menu {
   position: fixed;
@@ -598,6 +614,16 @@ async function fetchMessages(chatId, afterId, isInitial) {
     });
     const data = await res.json();
     if (!data.success) return;
+
+    const inputArea = document.getElementById('chatInputArea');
+    const blockedBanner = document.getElementById('chatBlockedBanner');
+    if (data.is_blocked) {
+      inputArea.classList.add('d-none');
+      blockedBanner.classList.remove('d-none');
+    } else {
+      inputArea.classList.remove('d-none');
+      blockedBanner.classList.add('d-none');
+    }
 
     const area = document.getElementById('messagesArea');
 

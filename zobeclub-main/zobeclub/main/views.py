@@ -824,13 +824,6 @@ def public_profile(request, username):
         ).values_list('track_id', flat=True)
         liked_tracks = Track.objects.filter(id__in=liked_track_ids).select_related('user').order_by('-uploaded_at')
 
-        is_following = False
-        if request.user.is_authenticated and not is_own_profile:
-            is_following = Follow.objects.filter(
-                follower=request.user,
-                following=profile_user
-            ).exists()
-
         is_blocked = False
         is_blocked_by = False
         if request.user.is_authenticated and not is_own_profile:
@@ -847,7 +840,6 @@ def public_profile(request, username):
             'playlists_count': playlists_count,
             'liked_count': liked_tracks.count(),
             'total_plays': total_plays,
-            'is_following': is_following,
             'is_blocked': is_blocked,
             'is_blocked_by': is_blocked_by,
         }
@@ -1848,6 +1840,12 @@ def send_message(request, chat_id):
     try:
         chat = get_object_or_404(Chat, id=chat_id, participants=request.user)
 
+        other = chat.participants.exclude(id=request.user.id).first()
+        if other and Block.objects.filter(
+            Q(blocker=request.user, blocked=other) | Q(blocker=other, blocked=request.user)
+        ).exists():
+            return JsonResponse({'success': False, 'error': 'Переписка заблокирована'})
+
         message_type = request.POST.get('type', 'text')
         content = request.POST.get('content', '').strip()
         reply_to_id = request.POST.get('reply_to')
@@ -2170,10 +2168,16 @@ def get_new_messages(request, chat_id):
                 }
             messages_data.append(md)
 
+        other = chat.participants.exclude(id=request.user.id).first()
+        is_blocked = bool(other and Block.objects.filter(
+            Q(blocker=request.user, blocked=other) | Q(blocker=other, blocked=request.user)
+        ).exists())
+
         return JsonResponse({
             'success': True,
             'messages': messages_data,
             'read_msg_ids': read_msg_ids,
+            'is_blocked': is_blocked,
         })
 
     except Exception as e:

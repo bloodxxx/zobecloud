@@ -97,16 +97,6 @@
           <span class="pf-stat-n">{{ tracks_count }}</span>
           <span class="pf-stat-l">треков</span>
         </div>
-        <div class="pf-stat-divider"></div>
-        <div class="pf-stat">
-          <span class="pf-stat-n">{{ profile_user.profile.followers_count }}</span>
-          <span class="pf-stat-l">подписчиков</span>
-        </div>
-        <div class="pf-stat-divider"></div>
-        <div class="pf-stat">
-          <span class="pf-stat-n">{{ profile_user.profile.following_count }}</span>
-          <span class="pf-stat-l">подписок</span>
-        </div>
       </div>
 
       <div class="pf-actions-row">
@@ -132,10 +122,6 @@
             <i class="bi bi-box-arrow-right"></i> Выйти
           </a>
         {% else %}
-          <button class="pf-btn {% if is_following %}pf-btn-outline{% else %}pf-btn-green{% endif %}" id="followBtn" onclick="toggleFollow()">
-            <i class="bi {% if is_following %}bi-person-check{% else %}bi-person-plus{% endif %}"></i>
-            {% if is_following %}Вы подписаны{% else %}Подписаться{% endif %}
-          </button>
           <button class="pf-btn pf-btn-outline" onclick="shareProfile()">
             <i class="bi bi-share"></i> Поделиться
           </button>
@@ -1603,7 +1589,6 @@ function shareTrack(id) {
   navigator.share?navigator.share({url}):navigator.clipboard.writeText(url).then(()=>showNotification('Ссылка скопирована','success'));
 }
 function sendMessage() { /* showNotification('Раздел чатов в разработке','info'); */ }
-function toggleFollow() { /* showNotification('Подписки в разработке','info'); */ }
 function shareProfile() {
   const url = window.location.href;
   if (navigator.share) {
