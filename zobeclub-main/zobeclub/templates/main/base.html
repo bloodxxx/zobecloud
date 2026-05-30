@@ -152,7 +152,7 @@
       <button class="zp-btn zp-close" id="zpClose" title="Закрыть плеер"><i class="bi bi-x-lg"></i></button>
     </div>
 
-    <audio id="zpAudio" preload="metadata"></audio>
+    <audio id="zpAudio" preload="auto"></audio>
   </div>
 
   <!-- Toast-контейнер (фиксированный, не влияет на layout) -->
@@ -160,7 +160,7 @@
 
   <!-- Bootstrap + плеер (вне SPA контейнера — не перезапускаются при навигации) -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="{% static 'js/track_player.js' %}?v=5"></script>
+  <script src="{% static 'js/track_player.js' %}?v=8"></script>
 
   {% if user.is_authenticated %}
   <script>

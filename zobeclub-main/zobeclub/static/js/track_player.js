@@ -1,42 +1,50 @@
-// ══════════════════════════════════════════
-// ZobeClub — плеер + SPA навигация
-// ══════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════════════
+// ZobeClub Player — версия 2 (Blob-based)
+// ────────────────────────────────────────────────────────────────────────
+//
+// ПРОБЛЕМА которую решает этот код:
+//   Django runserver плохо обрабатывает HTTP Range Requests для медиа.
+//   Когда браузер пытается перемотать трек в нескачанную часть, он
+//   отправляет Range-запрос, сервер отвечает некорректно — и seek
+//   тихо проваливается, трек начинает играть с начала.
+//
+// РЕШЕНИЕ:
+//   1. Качаем весь mp3-файл через fetch() как Blob (один обычный GET).
+//   2. Создаём Blob URL через URL.createObjectURL(blob).
+//   3. Назначаем audio.src = blobUrl. Теперь файл целиком в памяти.
+//   4. audio.currentTime = X работает мгновенно для ЛЮБОЙ позиции,
+//      потому что seek идёт по локальному blob, без сетевых запросов.
+//
+// ТРЕЙДОФФ:
+//   Воспроизведение начинается после полной загрузки трека (3-10 МБ).
+//   На быстром интернете задержка 0.5-2 сек. Зато перемотка работает
+//   идеально для всех треков с первого клика.
+//
+// ════════════════════════════════════════════════════════════════════════
 
-// ── SPA роутер ─────────────────────────────────────────────────────────────
-// перехватывает клики по ссылкам внутри сайта и загружает страницы через fetch
-// чтобы аудио не прерывалось при переходах
+
+// ── SPA роутер ──────────────────────────────────────────────────────────
+// Перехватывает клики по ссылкам и грузит страницы через fetch,
+// чтобы плеер не прерывался при навигации.
 class SPARouter {
   constructor() {
     this._busy = false;
-    this._init();
-  }
-
-  _init() {
-    // перехватываем клики по ссылкам
     document.addEventListener('click', e => {
       const a = e.target.closest('a[href]');
-      if (a && this._ok(a)) {
-        e.preventDefault();
-        this.go(a.href);
-      }
+      if (a && this._intercept(a)) { e.preventDefault(); this.go(a.href); }
     });
-
-    // кнопки «назад/вперёд» браузера
     window.addEventListener('popstate', () => this.go(location.href, false));
   }
 
-  // нужно ли перехватывать ссылку
-  _ok(a) {
+  _intercept(a) {
     try {
       const u = new URL(a.href);
-      if (u.origin !== location.origin)   return false; // внешняя ссылка
+      if (u.origin !== location.origin)   return false;
       if (a.target === '_blank')           return false;
       if (a.hasAttribute('download'))      return false;
       if (u.pathname.startsWith('/admin')) return false;
-      if (u.pathname === '/logout/')      return false; // полная перезагрузка — navbar обновится
-      // медиафайлы — без SPA
+      if (u.pathname === '/logout/')       return false;
       if (/\.(mp3|mp4|jpg|jpeg|png|gif|webp|pdf|zip|svg)$/i.test(u.pathname)) return false;
-      // чистый якорь на той же странице
       if (u.pathname === location.pathname && u.hash) return false;
       return true;
     } catch { return false; }
@@ -45,26 +53,17 @@ class SPARouter {
   async go(url, push = true) {
     if (this._busy) return;
     this._busy = true;
-    this._load(true);
-
+    this._loader(true);
     try {
-      const res = await fetch(url, {
-        headers: { 'X-SPA-Request': '1' },
-        credentials: 'same-origin',
-      });
-
-      // нестандартный ответ — fallback на обычную навигацию
+      const res = await fetch(url, { headers: { 'X-SPA-Request': '1' }, credentials: 'same-origin' });
       if (!res.ok) throw new Error(res.status);
-
       const html = await res.text();
       const doc  = new DOMParser().parseFromString(html, 'text/html');
 
-      // заменяем основной контент страницы
       const newMain = doc.getElementById('page-main');
       const curMain = document.getElementById('page-main');
       if (newMain && curMain) {
         curMain.innerHTML = newMain.innerHTML;
-        // выполняем inline-скрипты новой страницы (onclick-функции и т.п.)
         curMain.querySelectorAll('script').forEach(old => {
           const s = document.createElement('script');
           s.textContent = old.textContent;
@@ -73,7 +72,6 @@ class SPARouter {
         });
       }
 
-      // flash-сообщения Django → показываем как тосты
       const newMsg = doc.getElementById('page-messages');
       if (newMsg) {
         newMsg.querySelectorAll('[data-msg]').forEach(el => {
@@ -81,8 +79,6 @@ class SPARouter {
         });
       }
 
-      // инжектируем CSS новой страницы (page-specific стили из extra_css блока)
-      // старые page-css удаляем, добавляем новые
       document.querySelectorAll('style[data-spa-page]').forEach(el => el.remove());
       doc.querySelectorAll('head style').forEach(s => {
         if (!s.textContent.trim()) return;
@@ -92,256 +88,125 @@ class SPARouter {
         document.head.appendChild(el);
       });
 
-      // запускаем скрипты из блока extra_js новой страницы
       const newScripts = doc.getElementById('__page_scripts');
       if (newScripts) {
-        // обновляем контейнер
         const cur = document.getElementById('__page_scripts');
         if (cur) cur.innerHTML = newScripts.innerHTML;
-
-        // выполняем каждый скрипт
         newScripts.querySelectorAll('script').forEach(old => {
           const s = document.createElement('script');
-          if (old.src) {
-            s.src = old.src;
-            s.async = false;
-          } else {
-            s.textContent = old.textContent;
-          }
+          if (old.src) { s.src = old.src; s.async = false; }
+          else s.textContent = old.textContent;
           document.body.appendChild(s);
           if (!old.src) document.body.removeChild(s);
         });
       }
 
-      // обновляем заголовок и URL
       document.title = doc.title;
       if (push) history.pushState({}, '', url);
-
       window.scrollTo(0, 0);
-      this._updateNav(url);
 
+      document.querySelectorAll('.navbar-nav .nav-link').forEach(a => {
+        try {
+          const u = new URL(a.href);
+          a.classList.toggle('active', u.pathname !== '/' && url.includes(u.pathname));
+        } catch {}
+      });
     } catch {
-      // если что-то пошло не так — обычная навигация
       location.href = url;
     } finally {
       this._busy = false;
-      this._load(false);
+      this._loader(false);
     }
   }
 
-  // подсвечиваем активный пункт навигации
-  _updateNav(url) {
-    document.querySelectorAll('.navbar-nav .nav-link').forEach(a => {
-      try {
-        const u = new URL(a.href);
-        a.classList.toggle(
-          'active',
-          u.pathname !== '/' && url.includes(u.pathname)
-        );
-      } catch {}
-    });
-  }
-
-  // полоска загрузки сверху страницы
-  _load(start) {
+  _loader(start) {
     const bar = document.getElementById('spa-loader');
     if (!bar) return;
     if (start) {
       bar.style.transition = 'none';
       bar.style.width = '0%';
       bar.style.opacity = '1';
-      requestAnimationFrame(() => {
-        bar.style.transition = 'width 8s linear';
-        bar.style.width = '88%';
-      });
+      requestAnimationFrame(() => { bar.style.transition = 'width 8s linear'; bar.style.width = '88%'; });
     } else {
       bar.style.transition = 'width .2s ease';
       bar.style.width = '100%';
-      setTimeout(() => {
-        bar.style.opacity = '0';
-        setTimeout(() => { bar.style.width = '0%'; }, 300);
-      }, 200);
+      setTimeout(() => { bar.style.opacity = '0'; setTimeout(() => { bar.style.width = '0%'; }, 300); }, 200);
     }
   }
 }
 
 
-// ── Плеер ──────────────────────────────────────────────────────────────────
-class ZobePlayerClass {
+// ════════════════════════════════════════════════════════════════════════
+// ZobePlayer — основной класс плеера
+// ════════════════════════════════════════════════════════════════════════
+class ZobePlayer {
   constructor() {
-    this.audio    = document.getElementById('zpAudio');
-    this.bar      = document.getElementById('miniPlayer');
-    this.isPlaying  = false;
-    this.track      = null;
-    this.playlist   = [];
-    this.idx        = 0;
-    this.volume     = 0.4;
-    this._restoreTime = 0;
-    this._wasPlaying  = false;
-
+    // ── DOM элементы ────────────────────────────────────────────────────
+    const $ = id => document.getElementById(id);
+    this.audio = $('zpAudio');
+    this.bar   = $('miniPlayer');
     this.el = {
-      cover:    document.getElementById('zpCover'),
-      img:      document.getElementById('zpCoverImg'),
-      fb:       document.getElementById('zpCoverFb'),
-      title:    document.getElementById('zpTitle'),
-      artist:   document.getElementById('zpArtist'),
-      playBtn:  document.getElementById('zpPlay'),
-      playIcon: document.getElementById('zpPlayIcon'),
-      prev:     document.getElementById('zpPrev'),
-      next:     document.getElementById('zpNext'),
-      cur:      document.getElementById('zpCur'),
-      dur:      document.getElementById('zpDur'),
-      progress: document.getElementById('zpProgress'),
-      fill:     document.getElementById('zpFill'),
-      thumb:    document.getElementById('zpThumb'),
-      vol:      document.getElementById('zpVol'),
-      volIcon:  document.getElementById('zpVolIcon'),
-      close:    document.getElementById('zpClose'),
+      cover:  $('zpCover'),  img:    $('zpCoverImg'), fb:     $('zpCoverFb'),
+      title:  $('zpTitle'),  artist: $('zpArtist'),
+      play:   $('zpPlay'),   playI:  $('zpPlayIcon'),
+      prev:   $('zpPrev'),   next:   $('zpNext'),
+      cur:    $('zpCur'),    dur:    $('zpDur'),
+      bar:    $('zpProgress'), fill: $('zpFill'),     thumb:  $('zpThumb'),
+      vol:    $('zpVol'),    volI:   $('zpVolIcon'),
+      close:  $('zpClose'),
     };
+
+    // ── Публичное состояние ─────────────────────────────────────────────
+    this.track     = null;     // текущий трек {id,title,artist,audioUrl,coverUrl}
+    this.playlist  = [];
+    this.idx       = 0;
+    this.volume    = 0.4;
+    this.isPlaying = false;
+
+    // ── Внутреннее состояние ────────────────────────────────────────────
+    this._blobUrl     = null;  // текущий Blob URL (для revoke)
+    this._abort       = null;  // AbortController текущего fetch
+    this._loadedUrl   = null;  // URL который сейчас загружен в audio (исходный)
+    this._pendingSeek = null;  // {sec} — применить когда duration появится
+    this._wantPlay    = false; // запустить play() как только canplay сработает
 
     this._bindUI();
     this._bindAudio();
-    this._loadState();
-    this._setVol(this.volume * 100);
+    this._setVolume(this.volume);
+    this._restoreFromStorage();
   }
 
-  // ── привязка событий UI ────────────────────────────────────────────────
-  _bindUI() {
-    this.el.playBtn.addEventListener('click', () => this.togglePlay());
-    this.el.prev.addEventListener('click', () => this.prev());
-    this.el.next.addEventListener('click', () => this.next());
-    this.el.close.addEventListener('click', () => this._hide());
-    this.el.vol.addEventListener('input', e => this._setVol(e.target.value));
-    this.el.volIcon.addEventListener('click', () => this._mute());
-    document.addEventListener('keydown', e => this._key(e));
+  // ════════════════════════════════════════════════════════════════════
+  // ПУБЛИЧНЫЙ API
+  // ════════════════════════════════════════════════════════════════════
 
-    // прогресс — drag
-    let drag = false;
-    const seek = e => {
-      if (!this.audio.duration) return;
-      const r   = this.el.progress.getBoundingClientRect();
-      const pct = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-      this.audio.currentTime = pct * this.audio.duration;
-      this._updateProg();
-    };
-    const seekT = e => e.touches[0] && seek({ clientX: e.touches[0].clientX });
-
-    this.el.progress.addEventListener('mousedown',  e => { drag = true; seek(e); });
-    document.addEventListener('mousemove',   e => { if (drag) seek(e); });
-    document.addEventListener('mouseup',     ()  => { drag = false; });
-    this.el.progress.addEventListener('touchstart', e => { drag = true; seekT(e); }, { passive: true });
-    document.addEventListener('touchmove',   e => { if (drag) seekT(e); }, { passive: true });
-    document.addEventListener('touchend',    ()  => { drag = false; });
-  }
-
-  // ── привязка аудио событий ────────────────────────────────────────────
-  _bindAudio() {
-    this.audio.addEventListener('loadedmetadata', () => {
-      this.el.dur.textContent = this._fmt(this.audio.duration);
-      if (this._restoreTime > 0) {
-        this.audio.currentTime = this._restoreTime;
-        this._restoreTime = 0;
-        if (this._wasPlaying) { this._wasPlaying = false; this._tryResume(); }
-      }
-    });
-
-    this.audio.addEventListener('canplay', () => {
-      this.bar.classList.remove('loading');
-      if (this._wasPlaying) { this._wasPlaying = false; this._tryResume(); }
-    });
-
-    this.audio.addEventListener('timeupdate', () => {
-      this._updateProg();
-      if (this.isPlaying && Math.floor(this.audio.currentTime) % 5 === 0) this._save();
-    });
-
-    this.audio.addEventListener('ended',     () => this._onEnd());
-    this.audio.addEventListener('loadstart', () => this.bar.classList.add('loading'));
-    this.audio.addEventListener('error',     () => {
-      this.bar.classList.remove('loading');
-      this._err('Ошибка загрузки трека');
-      this.isPlaying = false;
-      this._syncUI();
-    });
-    this.audio.addEventListener('play',  () => { this.isPlaying = true;  this._syncUI(); this._save(); document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: true } })); });
-    this.audio.addEventListener('pause', () => { this.isPlaying = false; this._syncUI(); this._save(); document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: false } })); });
-
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden && this.track) this._syncUI();
-    });
-  }
-
-  // ── пытаемся возобновить после перехода страницы ──────────────────────
-  // браузер может заблокировать autoplay — тогда показываем паузу без ошибки
-  _tryResume() {
-    this.audio.play().then(() => {
-      this.bar.classList.remove('paused-restore');
-    }).catch(() => {
-      this.isPlaying = false;
-      this._syncUI();
-      // мигаем кнопкой play — «нажмите для продолжения»
-      this.bar.classList.add('paused-restore');
-      setTimeout(() => this.bar.classList.remove('paused-restore'), 3000);
-    });
-  }
-
-  // ── публичные методы ──────────────────────────────────────────────────
-
-  // воспроизвести трек; trackData = { id, title, artist, audioUrl, coverUrl }
   playTrack(data) {
+    if (!data || !data.audioUrl) return;
     this.track = data;
-    // если трека нет в плейлисте — добавляем/сбрасываем, чтобы next/prev работали
-    const existIdx = this.playlist.findIndex(t => t.id === data.id);
-    if (existIdx === -1) {
-      this.playlist = [data];
-      this.idx = 0;
-    } else {
-      this.idx = existIdx;
-    }
-    this.audio.src = data.audioUrl;
-    this._restoreTime = 0;
-    this._wasPlaying  = false;
-    this._updateInfo();
+
+    const i = this.playlist.findIndex(t => t.id === data.id);
+    if (i === -1) { this.playlist = [data]; this.idx = 0; }
+    else this.idx = i;
+
+    this._renderInfo();
     this._show();
-    this.bar.classList.add('loading');
-    this.audio.play().catch(err => {
-      if (err.name !== 'NotAllowedError') this._err('Ошибка воспроизведения');
-    });
-    // ── считаем прослушивание ─────────────────────────────────────────
+    this._loadAndPlay(data.audioUrl, 0, /*autoplay*/ true);
+
+    // Считаем прослушивание
     if (data.id) {
       fetch(`/api/increment-play/${data.id}/`, {
         method: 'POST',
-        headers: { 'X-CSRFToken': this._getCsrf() },
+        headers: { 'X-CSRFToken': this._csrf() },
         credentials: 'same-origin',
       }).catch(() => {});
     }
     this._save();
   }
 
-  // читаем CSRF-токен из куки (работает для всех пользователей)
-  _getCsrf() {
-    const m = document.cookie.match(/(?:^|;)\s*csrftoken=([^;]+)/);
-    return m ? decodeURIComponent(m[1]) : '';
-  }
-
-  // добавить трек в очередь
-  addToPlaylist(data) {
-    if (!this.playlist.find(t => t.id === data.id)) this.playlist.push(data);
-    this._save();
-  }
-
-  // установить плейлист и начать воспроизведение
-  setPlaylist(tracks, startIdx = 0) {
-    this.playlist = tracks;
-    this.idx = startIdx;
-    if (tracks.length) this.playTrack(tracks[startIdx]);
-    this._save();
-  }
-
   togglePlay() {
     if (!this.track) return;
-    if (this.isPlaying) this.audio.pause();
-    else this.audio.play().catch(() => {});
+    if (this.audio.paused) this.audio.play().catch(() => {});
+    else                    this.audio.pause();
   }
 
   prev() {
@@ -356,30 +221,178 @@ class ZobePlayerClass {
     this.playTrack(this.playlist[this.idx]);
   }
 
-  getCurrentTrack() { return this.track; }
-  getIsPlaying()    { return this.isPlaying; }
-  getPlaylist()     { return this.playlist; }
-  forceUpdateState() { this._loadState(); }
+  setPlaylist(tracks, startIdx = 0) {
+    if (!tracks || !tracks.length) return;
+    this.playlist = tracks;
+    this.idx = Math.max(0, Math.min(startIdx, tracks.length - 1));
+    this.playTrack(tracks[this.idx]);
+  }
 
-  // ── приватные методы ──────────────────────────────────────────────────
-
-  _setVol(v) {
-    this.volume = v / 100;
-    this.audio.volume = this.volume;
-    this.el.vol.value = v;
-    if      (this.volume === 0) this.el.volIcon.className = 'bi bi-volume-mute zp-vol-icon';
-    else if (this.volume < 0.5) this.el.volIcon.className = 'bi bi-volume-down zp-vol-icon';
-    else                        this.el.volIcon.className = 'bi bi-volume-up zp-vol-icon';
+  addToPlaylist(data) {
+    if (!this.playlist.find(t => t.id === data.id)) this.playlist.push(data);
     this._save();
   }
 
-  _mute() {
-    if (this.volume > 0) { this._prevVol = this.volume; this._setVol(0); }
-    else this._setVol((this._prevVol || 0.4) * 100);
+  getCurrentTrack()  { return this.track; }
+  getIsPlaying()     { return this.isPlaying; }
+  getPlaylist()      { return this.playlist; }
+  forceUpdateState() { this._restoreFromStorage(); }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ЗАГРУЗКА ТРЕКА (КЛЮЧЕВОЙ МЕТОД)
+  // ════════════════════════════════════════════════════════════════════
+  // Скачивает весь файл как Blob и подсовывает audio-элементу.
+  // Если url совпадает с уже загруженным — не перезагружает.
+  async _loadAndPlay(url, startSec, autoplay) {
+    // Тот же трек уже загружен в audio? Просто seek + play.
+    if (this._loadedUrl === url && this._blobUrl) {
+      if (startSec > 0 && isFinite(this.audio.duration)) {
+        this.audio.currentTime = startSec;
+      }
+      if (autoplay) this.audio.play().catch(() => {});
+      return;
+    }
+
+    // Отменяем предыдущую загрузку (если идёт)
+    this._abort?.abort();
+    this._abort = new AbortController();
+    const signal = this._abort.signal;
+
+    this._pendingSeek = startSec > 0 ? { sec: startSec } : null;
+    this._wantPlay    = autoplay;
+    this.bar.classList.add('loading');
+
+    try {
+      const res = await fetch(url, { signal, credentials: 'same-origin' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const blob = await res.blob();
+      if (signal.aborted) return;
+
+      // Освобождаем предыдущий blob URL
+      if (this._blobUrl) URL.revokeObjectURL(this._blobUrl);
+      this._blobUrl   = URL.createObjectURL(blob);
+      this._loadedUrl = url;
+
+      this.audio.src = this._blobUrl;
+      this.audio.load();
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+      this.bar.classList.remove('loading');
+      this._error('Не удалось загрузить трек');
+    }
   }
 
-  // обновляем отображение трека + делаем элементы кликабельными
-  _updateInfo() {
+  // ════════════════════════════════════════════════════════════════════
+  // ПЕРЕМОТКА
+  // ════════════════════════════════════════════════════════════════════
+  // Работает мгновенно для любой позиции, потому что данные в blob.
+  _seek(pct) {
+    if (!this.track) return;
+    pct = Math.max(0, Math.min(1, pct));
+    const d = this.audio.duration;
+
+    if (isFinite(d) && d > 0) {
+      this.audio.currentTime = pct * d;
+      this._pendingSeek = null;
+      this._renderProgress();
+    } else {
+      // Длительность ещё не известна — запомним и применим в loadedmetadata
+      this._pendingSeek = { pct };
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // UI EVENTS
+  // ════════════════════════════════════════════════════════════════════
+  _bindUI() {
+    this.el.play.addEventListener('click',  () => this.togglePlay());
+    this.el.prev.addEventListener('click',  () => this.prev());
+    this.el.next.addEventListener('click',  () => this.next());
+    this.el.close.addEventListener('click', () => this._hide());
+    this.el.vol.addEventListener('input',   e  => this._setVolume(e.target.value / 100));
+    this.el.volI.addEventListener('click',  () => this._mute());
+    document.addEventListener('keydown',    e  => this._key(e));
+
+    // Перемотка через Pointer Events с capture (надёжнее mouse+touch)
+    const pctOf = e => {
+      const r = this.el.bar.getBoundingClientRect();
+      return r.width ? Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) : 0;
+    };
+    this.el.bar.addEventListener('pointerdown', e => {
+      if (!this.track) return;
+      e.preventDefault();
+      this.el.bar.setPointerCapture(e.pointerId);
+      this._seek(pctOf(e));
+    });
+    this.el.bar.addEventListener('pointermove', e => {
+      if (!this.track || !e.buttons) return;
+      this._seek(pctOf(e));
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // AUDIO EVENTS
+  // ════════════════════════════════════════════════════════════════════
+  _bindAudio() {
+    this.audio.addEventListener('loadedmetadata', () => {
+      this.el.dur.textContent = this._fmt(this.audio.duration);
+      // Применяем отложенный seek (если был pct — сейчас знаем duration)
+      if (this._pendingSeek) {
+        const { pct, sec } = this._pendingSeek;
+        const t = sec !== undefined ? sec : pct * this.audio.duration;
+        this.audio.currentTime = Math.max(0, Math.min(this.audio.duration, t));
+        this._pendingSeek = null;
+      }
+      this._renderProgress();
+    });
+
+    this.audio.addEventListener('canplay', () => {
+      this.bar.classList.remove('loading');
+      if (this._wantPlay) {
+        this._wantPlay = false;
+        this.audio.play().catch(err => {
+          if (err.name !== 'NotAllowedError') this._error('Не получилось запустить');
+        });
+      }
+    });
+
+    this.audio.addEventListener('timeupdate', () => {
+      this._renderProgress();
+      // Сохраняем позицию каждые 5 секунд воспроизведения
+      if (this.isPlaying && Math.floor(this.audio.currentTime) % 5 === 0) this._save();
+    });
+
+    this.audio.addEventListener('seeked', () => this._renderProgress());
+    this.audio.addEventListener('ended',  () => this._onEnd());
+    this.audio.addEventListener('error',  () => {
+      this.bar.classList.remove('loading');
+      this._error('Ошибка воспроизведения');
+      this.isPlaying = false;
+      this._renderControls();
+    });
+
+    this.audio.addEventListener('play', () => {
+      this.isPlaying = true;
+      this._renderControls();
+      this._save();
+      document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: true } }));
+    });
+    this.audio.addEventListener('pause', () => {
+      this.isPlaying = false;
+      this._renderControls();
+      this._save();
+      document.dispatchEvent(new CustomEvent('zp:playstate', { detail: { playing: false } }));
+    });
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden && this.track) this._renderControls();
+    });
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // РЕНДЕР UI
+  // ════════════════════════════════════════════════════════════════════
+  _renderInfo() {
     if (!this.track) return;
     const t = this.track;
     this.el.title.textContent  = t.title;
@@ -394,42 +407,45 @@ class ZobePlayerClass {
       this.el.fb.style.display  = 'flex';
     }
 
-    // кликабельность: обложка + название → трек, автор → профиль
     if (t.id) {
-      const tUrl = `/track/${t.id}/`;
-      const aUrl = `/user/${t.artist}/`;
-      this.el.cover.onclick  = () => window.location.href = tUrl;
-      this.el.title.onclick  = () => window.location.href = tUrl;
-      this.el.artist.onclick = () => window.location.href = aUrl;
+      this.el.cover.onclick  = () => location.href = `/track/${t.id}/`;
+      this.el.title.onclick  = () => location.href = `/track/${t.id}/`;
+      this.el.artist.onclick = () => location.href = `/user/${t.artist}/`;
     }
-
     document.title = `${t.title} — ${t.artist} | ZobeCloud`;
-
-    // глобальное событие — слушают waveform и другие компоненты
     document.dispatchEvent(new CustomEvent('zp:trackchange', { detail: { track: t } }));
   }
 
-  _updateProg() {
-    if (!this.audio.duration) return;
-    const pct = (this.audio.currentTime / this.audio.duration) * 100;
-    this.el.fill.style.width  = `${pct}%`;
-    this.el.thumb.style.left  = `${pct}%`;
-    this.el.cur.textContent   = this._fmt(this.audio.currentTime);
+  _renderProgress() {
+    const d = this.audio.duration;
+    if (!isFinite(d) || d <= 0) {
+      this.el.fill.style.width = '0%';
+      this.el.thumb.style.left = '0%';
+      this.el.cur.textContent  = '0:00';
+      return;
+    }
+    const pct = (this.audio.currentTime / d) * 100;
+    this.el.fill.style.width = pct + '%';
+    this.el.thumb.style.left = pct + '%';
+    this.el.cur.textContent  = this._fmt(this.audio.currentTime);
   }
 
-  _syncUI() {
+  _renderControls() {
     if (this.isPlaying) {
-      this.el.playIcon.className = 'bi bi-pause-fill';
+      this.el.playI.className = 'bi bi-pause-fill';
       this.bar.classList.add('playing');
     } else {
-      this.el.playIcon.className = 'bi bi-play-fill';
+      this.el.playI.className = 'bi bi-play-fill';
       this.bar.classList.remove('playing');
     }
   }
 
+  // ════════════════════════════════════════════════════════════════════
+  // ПРОЧЕЕ
+  // ════════════════════════════════════════════════════════════════════
   _onEnd() {
     if (this.playlist.length > 1) this.next();
-    else { this.audio.currentTime = 0; this._syncUI(); }
+    else { this.audio.currentTime = 0; this._renderControls(); }
   }
 
   _show() {
@@ -444,17 +460,54 @@ class ZobePlayerClass {
     setTimeout(() => {
       this.bar.style.display = 'none';
       this.audio.pause();
+      this.audio.removeAttribute('src');
+      this.audio.load();
+      if (this._blobUrl) { URL.revokeObjectURL(this._blobUrl); this._blobUrl = null; }
+      this._loadedUrl = null;
       this.track = null;
-      this._clearState();
+      this._clearStorage();
     }, 300);
+  }
+
+  _setVolume(v) {
+    if (typeof v === 'string') v = parseFloat(v);
+    if (v > 1) v = v / 100; // принимаем и 0..1, и 0..100
+    this.volume = v;
+    this.audio.volume = v;
+    this.el.vol.value = Math.round(v * 100);
+    if      (v === 0)   this.el.volI.className = 'bi bi-volume-mute zp-vol-icon';
+    else if (v < 0.5)   this.el.volI.className = 'bi bi-volume-down zp-vol-icon';
+    else                this.el.volI.className = 'bi bi-volume-up zp-vol-icon';
+    this._save();
+  }
+
+  _mute() {
+    if (this.volume > 0) { this._prevVol = this.volume; this._setVolume(0); }
+    else this._setVolume(this._prevVol || 0.4);
+  }
+
+  _key(e) {
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+    if (!this.track) return;
+    const d = this.audio.duration || 1;
+    switch (e.code) {
+      case 'Space':      e.preventDefault(); this.togglePlay(); break;
+      case 'ArrowLeft':  e.preventDefault(); this._seek((this.audio.currentTime - 10) / d); break;
+      case 'ArrowRight': e.preventDefault(); this._seek((this.audio.currentTime + 10) / d); break;
+      case 'ArrowUp':    e.preventDefault(); this._setVolume(Math.min(1, this.volume + 0.1)); break;
+      case 'ArrowDown':  e.preventDefault(); this._setVolume(Math.max(0, this.volume - 0.1)); break;
+      case 'KeyM':       e.preventDefault(); this._mute(); break;
+      case 'KeyN':       e.preventDefault(); this.next(); break;
+      case 'KeyP':       e.preventDefault(); this.prev(); break;
+    }
   }
 
   _fmt(s) {
     if (!s || isNaN(s)) return '0:00';
-    return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+    return Math.floor(s / 60) + ':' + String(Math.floor(s % 60)).padStart(2, '0');
   }
 
-  _err(msg) {
+  _error(msg) {
     const el = document.createElement('div');
     el.style.cssText = 'position:fixed;top:20px;right:20px;background:#c0392b;color:#fff;padding:.55rem 1rem;border-radius:10px;font-size:.84rem;font-weight:600;z-index:9999;';
     el.textContent = msg;
@@ -462,25 +515,17 @@ class ZobePlayerClass {
     setTimeout(() => el.remove(), 4000);
   }
 
-  _key(e) {
-    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-    switch (e.code) {
-      case 'Space':      e.preventDefault(); this.togglePlay(); break;
-      case 'ArrowLeft':  e.preventDefault(); if (this.track) this.audio.currentTime = Math.max(0, this.audio.currentTime - 10); break;
-      case 'ArrowRight': e.preventDefault(); if (this.track) this.audio.currentTime = Math.min(this.audio.duration, this.audio.currentTime + 10); break;
-      case 'ArrowUp':    e.preventDefault(); this._setVol(Math.min(100, this.volume * 100 + 10)); break;
-      case 'ArrowDown':  e.preventDefault(); this._setVol(Math.max(0, this.volume * 100 - 10)); break;
-      case 'KeyM':       e.preventDefault(); this._mute(); break;
-      case 'KeyN':       e.preventDefault(); this.next(); break;
-      case 'KeyP':       e.preventDefault(); this.prev(); break;
-    }
+  _csrf() {
+    const m = document.cookie.match(/(?:^|;)\s*csrftoken=([^;]+)/);
+    return m ? decodeURIComponent(m[1]) : '';
   }
 
-  // ── localStorage ─────────────────────────────────────────────────────
-
+  // ════════════════════════════════════════════════════════════════════
+  // localStorage
+  // ════════════════════════════════════════════════════════════════════
   _save() {
     try {
-      localStorage.setItem('zp_state', JSON.stringify({
+      localStorage.setItem('zp_state_v2', JSON.stringify({
         track:    this.track,
         playlist: this.playlist,
         idx:      this.idx,
@@ -491,71 +536,66 @@ class ZobePlayerClass {
     } catch {}
   }
 
-  _loadState() {
+  _restoreFromStorage() {
     try {
-      const raw = localStorage.getItem('zp_state');
-      if (!raw) { this.volume = 0.4; return; }
+      const raw = localStorage.getItem('zp_state_v2');
+      if (!raw) return;
       const s = JSON.parse(raw);
 
       this.track    = s.track    || null;
       this.playlist = s.playlist || [];
       this.idx      = s.idx      || 0;
-      this.volume   = s.volume !== undefined ? s.volume : 0.4;
-      this._wasPlaying  = s.playing || false;
-      this._restoreTime = s.time    || 0;
-      this.isPlaying    = false; // true выставится только после успешного play()
+      this.isPlaying = false;
+      if (s.volume !== undefined) this._setVolume(s.volume);
 
       if (this.track) {
-        this.audio.src = this.track.audioUrl;
+        this._renderInfo();
         this._show();
-        this._updateInfo(); // dispatches zp:trackchange
-        this._syncUI(); // показываем паузу пока не возобновим
+        this._renderControls();
+        // autoplay браузер заблокирует — упадёт тихо, кнопка останется paused
+        this._loadAndPlay(this.track.audioUrl, s.time || 0, !!s.playing);
       }
-    } catch {
-      this.volume = 0.4;
-    }
+    } catch {}
   }
 
-  _clearState() {
-    try { localStorage.removeItem('zp_state'); } catch {}
+  _clearStorage() {
+    try { localStorage.removeItem('zp_state_v2'); } catch {}
   }
 }
 
 
-// ── Инициализация ──────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════
+// Инициализация
+// ════════════════════════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded', () => {
-  window.ZobePlayer = new ZobePlayerClass();
+  window.ZobePlayer = new ZobePlayer();
   window.ZobeSPA    = new SPARouter();
 });
 
-// сохраняем состояние при любом уходе со страницы
 window.addEventListener('beforeunload', () => window.ZobePlayer?._save());
 window.addEventListener('pagehide',     () => window.ZobePlayer?._save());
-
-// восстановление при bfcache (кэш браузера)
 window.addEventListener('pageshow', e => {
-  if (e.persisted && window.ZobePlayer) window.ZobePlayer._loadState();
+  if (e.persisted && window.ZobePlayer) window.ZobePlayer._restoreFromStorage();
 });
 
+// Хелперы для шаблонов (обратная совместимость)
+function playTrackInMiniPlayer(data)  { window.ZobePlayer?.playTrack(data); }
+function addTrackToPlaylist(data)     { window.ZobePlayer?.addToPlaylist(data); }
+function setPlaylist(tracks, idx = 0) { window.ZobePlayer?.setPlaylist(tracks, idx); }
+function updatePlayerState()          { window.ZobePlayer?.forceUpdateState(); }
 
-// ── Хелперы для шаблонов ──────────────────────────────────────────────────
-function playTrackInMiniPlayer(data)    { window.ZobePlayer?.playTrack(data); }
-function addTrackToPlaylist(data)       { window.ZobePlayer?.addToPlaylist(data); }
-function setPlaylist(tracks, idx = 0)  { window.ZobePlayer?.setPlaylist(tracks, idx); }
-function updatePlayerState()            { window.ZobePlayer?.forceUpdateState(); }
 
-
-// ── Toast-уведомления ──────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════
+// Toast уведомления
+// ════════════════════════════════════════════════════════════════════════
 window.showToast = function(message, type) {
   type = type || 'success';
-  let container = document.getElementById('toast-container');
+  const container = document.getElementById('toast-container');
   if (!container) return;
-
-  const icons = { success: 'bi-check-circle', error: 'bi-exclamation-circle', warning: 'bi-exclamation-triangle', info: 'bi-info-circle' };
+  const icons  = { success: 'bi-check-circle', error: 'bi-exclamation-circle', warning: 'bi-exclamation-triangle', info: 'bi-info-circle' };
   const colors = { success: 'var(--accent-green)', error: '#e74c3c', warning: '#f39c12', info: '#3498db' };
-  const icon = icons[type] || icons.info;
+  const icon  = icons[type]  || icons.info;
   const color = colors[type] || colors.info;
-
   const el = document.createElement('div');
   el.className = 'toast-item toast-' + type;
   el.innerHTML =
@@ -563,14 +603,11 @@ window.showToast = function(message, type) {
     '<span>' + message + '</span>' +
     '<button class="toast-close" onclick="this.closest(\'.toast-item\').remove()"><i class="bi bi-x"></i></button></div>' +
     '<div class="toast-timer" style="background:' + color + ';"></div>';
-
   container.appendChild(el);
-  // начать анимацию скрытия
   setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(110%)'; }, 3800);
   setTimeout(() => el.remove(), 4200);
 };
 
-// при первой загрузке — конвертируем Django flash messages в тосты
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('#page-messages [data-msg]').forEach(el => {
     showToast(el.dataset.msg, el.dataset.type || 'success');
