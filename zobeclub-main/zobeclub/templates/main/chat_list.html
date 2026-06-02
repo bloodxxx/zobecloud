@@ -825,8 +825,16 @@ async function sendMessage() {
 
       const preview = document.getElementById(`chat-preview-${activeChatId}`);
       if (preview) preview.textContent = content.substring(0, 38);
+    } else {
+      console.error('sendMessage error:', data.error);
+      const banner = document.getElementById('chatBlockedBanner');
+      if (data.error && data.error.includes('заблокирован')) {
+        if (banner) { banner.classList.remove('d-none'); document.getElementById('chatInputArea').classList.add('d-none'); }
+      } else {
+        alert('Ошибка: ' + (data.error || 'Не удалось отправить сообщение'));
+      }
     }
-  } catch (e) { console.error('sendMessage:', e); }
+  } catch (e) { console.error('sendMessage:', e); alert('Ошибка соединения: ' + e.message); }
 
   btn.disabled = false;
   input.focus();

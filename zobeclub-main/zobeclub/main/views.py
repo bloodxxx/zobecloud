@@ -1923,6 +1923,8 @@ def send_message(request, chat_id):
         return JsonResponse(response_data)
 
     except Exception as e:
+        import traceback
+        print(f"[send_message] Исключение: {e}\n{traceback.format_exc()}")
         return JsonResponse({
             'success': False,
             'error': f'Ошибка при отправке сообщения: {str(e)}'

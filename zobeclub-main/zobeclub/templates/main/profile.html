@@ -277,7 +277,50 @@
           </button>
         {% endif %}
       </div>
-      <div class="pf-tracks-grid" id="playlistsGridContainer"></div>
+      {% if playlists %}
+        <div class="pf-tracks-grid" id="playlistsGridContainer">
+          {% for playlist in playlists %}
+            <div class="pf-track-card" data-playlist-id="{{ playlist.id }}">
+              <div class="pf-track-cover">
+                <img src="{{ playlist.cover_url }}" alt="{{ playlist.title }}" class="track-cover"
+                     onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+                <div class="pf-track-ph" style="display:none;"><i class="bi bi-collection-play"></i></div>
+                <div class="pf-track-overlay">
+                  <button class="play-btn pf-play" onclick="playPlaylist({{ playlist.id }})">
+                    <i class="bi bi-play-circle-fill"></i>
+                  </button>
+                </div>
+                {% if is_own_profile %}
+                  <div class="pf-track-btns">
+                    <button class="pf-tact" onclick="editPlaylist({{ playlist.id }},'{{ playlist.title|escapejs }}','{{ playlist.description|escapejs }}','{{ playlist.visibility }}')" title="Редактировать">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                    <button class="pf-tact pf-tact-danger" onclick="deletePlaylist({{ playlist.id }},'{{ playlist.title|escapejs }}')">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </div>
+                {% endif %}
+              </div>
+              <div class="pf-track-info">
+                <a href="/playlist/{{ playlist.id }}/" class="pf-track-title">{{ playlist.title }}</a>
+                <div class="pf-track-date"><i class="bi bi-music-note"></i> {{ playlist.tracks_count }} треков</div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="pf-empty" id="playlistsGridContainer">
+          <i class="bi bi-collection-play"></i>
+          {% if is_own_profile %}
+            <div>Нет плейлистов</div>
+            <button class="pf-btn pf-btn-green" onclick="createPlaylist()">
+              <i class="bi bi-plus-circle"></i> Создать первый
+            </button>
+          {% else %}
+            <div>Пользователь не создал плейлисты</div>
+          {% endif %}
+        </div>
+      {% endif %}
     </div>
 
     {# ── Likes ── #}
@@ -1326,7 +1369,6 @@ function confirmDeletePlaylist(id) {
 
 document.addEventListener('DOMContentLoaded', function() {
   const tab = document.querySelector('button[data-bs-target="#playlists"]');
-  if (tab) { tab.addEventListener('shown.bs.tab', loadPlaylistsContent); if (tab.classList.contains('active')) loadPlaylistsContent(); }
   const params = new URLSearchParams(window.location.search);
   if (params.get('tab')==='playlists' && tab) new bootstrap.Tab(tab).show();
 });
